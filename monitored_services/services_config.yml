@@ -1,0 +1,18 @@
+startup:
+  # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
+  runInWorkspace: false
+
+services_to_log:
+# List of all services that logging is required for your challenge to operate 
+# All of the listed services will have periodic checks sending their logs to graylog.
+#
+# host (required): This is the hostname or IP address that is hosting a required service. If you use hostname, make sure that DNS is configured correctly and works.
+# user (optional): The user that will be connected too via SSH, defaults to 'user'. Only needs applying if you changed the default user.
+# password (required): The password to be used for the specified user.
+# service: (required): the name of the service (including the .service) that is running on the specified host.  
+#
+  ## Example: 
+  # - host: 10.5.5.10
+  #   user: user
+  #   password: tartans
+  #   service: example.service

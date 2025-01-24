@@ -1,0 +1,16 @@
+[Unit]
+Description=PCCC Service Logger
+After=network-online.target
+Wants=network-online.target
+
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/challengeServer/services/
+ExecStart=python3 /home/user/challengeServer/services/service_logger.py
+ExecStop=/usr/bin/pkill -f service_logger.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=monitoredservices.service

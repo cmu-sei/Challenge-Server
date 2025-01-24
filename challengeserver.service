@@ -1,0 +1,15 @@
+[Unit]
+Description=Challenge Server Service
+After=network-online.target
+Wants=network-online.target
+
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/challengeServer/src/
+ExecStart=python3 /home/user/challengeServer/src/challengeServer.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=challengeserver.service

@@ -1,0 +1,37 @@
+<!--
+Challenge Sever
+Copyright 2024 Carnegie Mellon University.
+NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+[DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+DM24-0645
+-->
+
+{% extends 'base.html' %}
+{% set title='challenge.us - Grade' %}
+{% block content %}
+    <!-- This centers things on the page -->
+    <style>
+        div.center {
+            text-align: center;
+        }
+    </style>
+
+    <!-- html page -->
+    <div class='center'>
+    <h3 id="grading-header">
+    Grading Page
+    </h3>
+        <!-- Grade button form -->
+        <form action='/grade' method="GET">
+            <a id=grade><button id="grading-button" class='btn btn-default' >
+            Grade Challenge
+            </button></a>
+        </form>
+    </div>
+
+    <div class='center'>
+        <p>If this challenge has files to download, you can access them <a href="{{ url_for('.list_files') }}">here</a> </p>
+    </div>
+{% endblock %}
+
