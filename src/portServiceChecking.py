@@ -10,7 +10,6 @@
 import subprocess, logging, re, socket, requests, ipaddress
 from datetime import datetime
 from time import sleep
-from pythonping import ping
 
 logger = logging.getLogger("challengeServer")
 
