@@ -6,7 +6,7 @@ from app.extensions import globals
 
 class Config:
     SECRET_KEY = 'NOT_A_TOKEN'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(globals.basedir,'hub.db')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(globals.basedir,'challenge.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     FLASK_APP = 'app.py'
     BASE_DIR = globals.basedir
