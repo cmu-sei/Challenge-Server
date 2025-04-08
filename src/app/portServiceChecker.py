@@ -12,7 +12,7 @@ def checkLocalPorts():
     Runs a subprocess to list open TCP and UDP ports
     Returns Stdout from the subprocess
     '''
-    stdout = subprocess.run(f"ss -nltup", shell=True, capture_output=True).stdout.decode("UTF-8")
+    stdout = subprocess.run("ss -nltup", shell=True, capture_output=True).stdout.decode("UTF-8")
     return stdout
 
 
@@ -22,12 +22,12 @@ def checkLocalPortLoop(interval=30):
     Logs results to the same logger as the rest of the Challenge Server.
     Logs in a more readable format written to /var/log/open-ports
     '''
-
     logger.info(f"Checking local open ports every {interval} seconds")
     while True:
         date = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
         open_ports = checkLocalPorts()
-        stripped = re.sub("\s+", " ", open_ports).replace("\n", "\\n") # removing multiple spaces in a row and newline chars make this nicer for syslog (one line logging)
+        # Changed to a raw string literal to correctly handle the \s pattern
+        stripped = re.sub(r"\s+", " ", open_ports).replace("\n", "\\n")
         logger.info(f"Open ports: {stripped}")
 
         with open("/var/log/open-ports", "a") as f:
@@ -52,7 +52,6 @@ def isIPv4(host):
     elif isValidIPv6(host):
         logger.info(f"Regex matched {host} as a valid IPv6 address")
         return False
-    # If it is not IPv4 or IPv6 here, then we have a FQDN or Hostname and attempt to resolve
     else:
         try:
             ipAddr = socket.gethostbyname(str(host))
@@ -82,8 +81,8 @@ def isValidIPv4(host):
     Returns False if it does not
     '''
     ipv4_re = re.compile(
-    ('((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.)'
-     '{3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
+        (r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.)'
+         r'{3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
     return bool(ipv4_re.match(host))
 
 
@@ -95,22 +94,22 @@ def isValidIPv6(host):
     Returns False if it does not
     '''
     ipv6_re = re.compile(
-    ('([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'
-    '([0-9a-fA-F]{1,4}:){1,7}:|'
-    '([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|'
-    '([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|'
-    '([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|'
-    '([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|'
-    '([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|'
-    '[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|'
-    ':((:[0-9a-fA-F]{1,4}){1,7}|:)|'
-    'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|'
-    '::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|'
-    '(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|'
-    '(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|'
-    '([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|'
-    '(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|'
-    '(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
+        (r'([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'
+         r'([0-9a-fA-F]{1,4}:){1,7}:|'
+         r'([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|'
+         r'([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|'
+         r'([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|'
+         r'([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|'
+         r'([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|'
+         r'[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|'
+         r':((:[0-9a-fA-F]{1,4}){1,7}|:)|'
+         r'fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|'
+         r'::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|'
+         r'(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|'
+         r'(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|'
+         r'([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|'
+         r'(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|'
+         r'(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
     return bool(ipv6_re.match(host))
 
 
@@ -124,8 +123,8 @@ def checkPing(host, count=1):
     try:
         results = subprocess.run(f"ping {host} -W 1 -c {count}", shell=True, capture_output=True)
         exit_code = results.returncode
-        stdout_string = " \\n ".join(line.strip() for line in str(results.stdout.decode("UTF-8")).splitlines())
-        stderr_string = " \\n ".join(line.strip() for line in str(results.stderr.decode("UTF-8")).splitlines())
+        stdout_string = " \\n ".join(line.strip() for line in results.stdout.decode("UTF-8").splitlines())
+        stderr_string = " \\n ".join(line.strip() for line in results.stderr.decode("UTF-8").splitlines())
         logger.info(f"Exit code {exit_code} from pinging {host}")
         if exit_code == 0:
             logger.info(f"Successful ping to host {host} - {stdout_string}")
@@ -170,11 +169,11 @@ def checkWeb(host, port=80, path='/'):
     Returns False if the web request returns anything but a 200
     If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
     '''
-    fqdn = re.compile('(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
-    if fqdn.search(host): # Check if host is FQDN. If True, IP version does not matter
+    fqdn = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
+    if fqdn.search(host):  # Check if host is FQDN. If True, IP version does not matter.
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using FQDN")
-    elif isIPv4(host) == True:
+    elif isIPv4(host):
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using IPv4")
     else:
@@ -196,20 +195,19 @@ def checkWeb(host, port=80, path='/'):
     return False
 
 
-def checkService(service:dict):
+def checkService(service: dict):
     '''
     Checks to see if the service is available once.
-    Returns True is the service is reachable.
-    Returns False is the service is unreachable.
+    Returns True if the service is reachable.
+    Returns False if the service is unreachable.
     '''
-
     logger.info(f"Checking availability of service: {service}")
     reachable = False
     service_type = service['type']
     if service_type == 'ping':
         reachable = checkPing(service['host'])
-    elif service_type =='socket':
-        reachable = checkSocket(service['host'],service['port'])
+    elif service_type == 'socket':
+        reachable = checkSocket(service['host'], service['port'])
     elif service_type == 'web':
         reachable = checkWeb(service['host'], service['port'], service['path'])
 
@@ -221,13 +219,12 @@ def checkService(service:dict):
         return False
 
 
-def waitForService(service:dict, interval=2, max_attempts=None):
+def waitForService(service: dict, interval=2, max_attempts=None):
     '''
     Checks the service in a loop until it becomes available or max_attempts is reached.
     Returns once the service is available or max_attempts is reached.
     Default time between checks is 2s.
     '''
-
     service_available = False
     attempts = 0
     while True:
@@ -242,11 +239,10 @@ def waitForService(service:dict, interval=2, max_attempts=None):
         sleep(interval)
 
 
-def checkServiceLoop(service:dict, interval=30, max_checks=None):
+def checkServiceLoop(service: dict, interval=30, max_checks=None):
     '''
     Checks the availability of the service forever in a loop (or until max_checks is reached). Default time between checks is 30s.
     '''
-
     logger.info(f"Checking service {service} every {interval} seconds")
     attempts = 0
     while True:
