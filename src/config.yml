@@ -1,11 +1,11 @@
 # Please read the `README.md` file to get detailed explanation of available configurations.
 challenge_name: ""
 
-startup:
-  # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
-  runInWorkspace: true
-  scripts:
-    - startup.py
+# startup:
+#   # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
+#   runInWorkspace: true
+#   scripts:
+#     - startup.py
 
 # required_services:
 ## Example: Ensure you can ping this host before startup scripts kick off
