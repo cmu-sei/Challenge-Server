@@ -140,4 +140,7 @@ def start_grading_server(app):
     globals.scheduler.start()
     # Log that the server is starting up and start server on port 80
     logger.info(f"Starting the Challenge Server.")
-    app.run(host='127.0.0.1', port=8888, debug=False, ssl_context=(f'{globals.ssl_dir}/host.pem', f'{globals.ssl_dir}/host-key.pem'))
+
+    app.run(host='127.0.0.1', port=8888, debug=False)
+    # Use the below if you have SSL certs
+    # app.run(host='127.0.0.1', port=8888, debug=False, ssl_context=(f'{globals.ssl_dir}/host.pem', f'{globals.ssl_dir}/host-key.pem'))
