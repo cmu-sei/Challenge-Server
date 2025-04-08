@@ -1,0 +1,92 @@
+# Please read the `config_README.md` file to get detailed explanation of available configurations.
+lab_name: ""
+
+startup:
+  # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
+  runInWorkspace: true
+  scripts: 
+    - startup.py
+
+# required_services:
+  ## Example: Ensure you can ping this host before startup scripts kick off
+  # - host: example.us
+  #   type: ping
+  #   block_startup_scripts: true
+
+  ## Example: Ensure you can reach this host on port 22 before startup scripts kick off
+  # - host: example.us
+  #   port: 22
+  #   type: socket
+  #   block_startup_scripts: true
+
+  ## Example: Ensure you can complete a web request to http://example.us:8888/example. Don't wait for this to be available before startup scripts. 
+  # - host: example.us
+  #   port: 8888
+  #   type: web
+  #   path: /example
+  #   block_startup_scripts: false
+  
+hosted_files: 
+  # Set this to true if you have files that need to be hosted
+  enabled: false
+
+info_and_services:
+  info_home_enabled: false
+  services_home_enabled: false
+
+
+# services_to_log:
+  ## Example: 
+  #- host: '10.4.4.251'
+  #  user: user
+  #  password: tartans
+  #  service: pump.service
+
+  #- host: '10.4.4.250'
+  #  user: user
+  #  password: tartans
+  #  service: update.service
+
+grading:
+  enabled: false
+  grader_post: false
+  manual_grading: false
+  manual_grading_script: manualGradingExample.py
+  cron_grading: false
+  cron_grading_script: null
+  cron_interval: 5
+  cron_at: null
+  cron_delay: 10
+  cron_limit: null
+  rate_limit: 0
+  token_location: guestinfo
+
+  submission: 
+    method: display
+    grader_url: "https://presidentscup.cisa.gov/gb/pc/"
+    grader_key: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+  parts:
+    GradingCheck1:    
+      token_name: Q1  
+      text: "q1"
+      mode: text    
+    GradingCheck2: 
+      token_name: Q2
+      text: "q2"
+      mode: button
+    GradingCheck3:  
+      token_name: Q3
+      text: "q3"
+      mode: button
+    GradingCheck4: 
+      token_name: Q4
+      text: "q4"
+      mode: button
+
+  phases: true
+  phase_info:
+    phase1: ["GradingCheck1", "GradingCheck2"]
+    phase2: ["GradingCheck3"]
+    phase3: ["GradingCheck4"]
+    #mini_lab: []

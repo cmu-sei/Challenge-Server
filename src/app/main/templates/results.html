@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Results{% endblock %}
+
+{% block header %}    
+{% endblock %}
+
+{% block content %}
+
+{% if g.globs.grading_enabled == False %}
+    <span id="title" style="padding-top:20px;">
+        There is no grading for this lab.
+    </span>
+{% else %}
+    <span id="title" style="padding-top:30px; padding-bottom:30px;">
+        Grading Results
+    </span>
+
+    <div id="results"></div>
+
+    <script src=" {{ url_for('main.static',filename='js/results.js') }} "></script>
+{% endif %}
+
+{% endblock %}

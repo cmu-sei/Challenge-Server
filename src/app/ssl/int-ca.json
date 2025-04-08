@@ -1,0 +1,13 @@
+{
+  "names": [
+    {
+      "C": "US",
+      "O": "skills-hub CA"
+    }
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "CN": "skills-hub CA"
+}
