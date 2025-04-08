@@ -2,7 +2,6 @@
 
 import subprocess, io, datetime, random, string
 from flask import Blueprint, render_template, request, Response, current_app, redirect, url_for, abort, send_from_directory, g
-# local imports
 from app.extensions import logger, globals
 from app.functions import do_grade
 

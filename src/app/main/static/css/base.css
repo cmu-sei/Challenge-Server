@@ -8,7 +8,6 @@ body, head {
     font-size: 18px;
 }
 
-
 legend {
     padding: 5px 10px;
     border:1px solid black;
@@ -83,7 +82,7 @@ p.center ul.center {
     flex-grow:1;
     flex-shrink:1;
     display:flex;
-   
+
 }
 
 .navbar-side.left {
@@ -141,7 +140,6 @@ footer {
     padding-top: 25px;
 }
 
-
 td {
     padding:10px;
 }
@@ -161,7 +159,6 @@ td.right {
 select {
     width:20%;
 }
-
 
 .text {
   border: none;
@@ -193,7 +190,6 @@ select {
     padding-bottom: 10px;
     text-align: center;
 }
-
 
 td input {
     width: 100%;

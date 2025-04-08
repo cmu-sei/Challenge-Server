@@ -4,7 +4,6 @@ import subprocess, logging, re, socket, requests, ipaddress
 from datetime import datetime
 from time import sleep
 from pythonping import ping
-# local imports
 from app.extensions import logger, globals
 
 
@@ -19,8 +18,8 @@ def checkLocalPorts():
 
 def checkLocalPortLoop(interval=30):
     '''
-    Checks open ports forever in a loop. Default time between checks is 30s. 
-    Logs results to the same logger as the rest of the Skills Hub (in one line)
+    Checks open ports forever in a loop. Default time between checks is 30s.
+    Logs results to the same logger as the rest of the Challenge Server.
     Logs in a more readable format written to /var/log/open-ports
     '''
 
@@ -45,7 +44,7 @@ def isIPv4(host):
     Returns True if the address is IPv4
     Returns False if the address is IPv6
     If host is a hostname/FQDN, attempts to resolve as IPv4
-    If unsuccessful, assumes address is IPv6 
+    If unsuccessful, assumes address is IPv6
     '''
     if isValidIPv4(host):
         logger.info(f"Regex matched {host} as a valid IPv4 address")
@@ -53,10 +52,10 @@ def isIPv4(host):
     elif isValidIPv6(host):
         logger.info(f"Regex matched {host} as a valid IPv6 address")
         return False
-    # If it is not IPv4 or IPv6 here, then we have a FQDN or Hostname and attempt to resolve  
+    # If it is not IPv4 or IPv6 here, then we have a FQDN or Hostname and attempt to resolve
     else:
         try:
-            ipAddr = socket.gethostbyname(str(host))    
+            ipAddr = socket.gethostbyname(str(host))
             logger.info(f"Resolved IPv4 address is {ipAddr}")
             return True
         except socket.gaierror as e:
@@ -71,17 +70,17 @@ def isIPv4(host):
                 logger.error(f"Socket Error in isIPv4 Function - {e}. Assuming IPv4 in the meantime")
                 return True
         except Exception as e:
-            logger.error(f"Exception in isIPv4 Function - {e}. Assuming IPv4 in the meantime") 
+            logger.error(f"Exception in isIPv4 Function - {e}. Assuming IPv4 in the meantime")
             return True
 
 
 def isValidIPv4(host):
     '''
     A regular expression to check if a given host
-    value matches the pattern of an IPv4 address. 
+    value matches the pattern of an IPv4 address.
     Returns True if address matches the pattern
     Returns False if it does not
-    ''' 
+    '''
     ipv4_re = re.compile(
     ('((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.)'
      '{3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
@@ -90,9 +89,9 @@ def isValidIPv4(host):
 
 def isValidIPv6(host):
     '''
-    A regular expression to check if a given host 
-    value matches the pattern of an IPv6 address. 
-    Returns True if address matches the pattern 
+    A regular expression to check if a given host
+    value matches the pattern of an IPv6 address.
+    Returns True if address matches the pattern
     Returns False if it does not
     '''
     ipv6_re = re.compile(
@@ -152,7 +151,7 @@ def checkSocket(host, port):
         s.connect((host, int(port)))
         s.shutdown(socket.SHUT_RDWR)
         logger.info(f"Successful connection to socket {host}:{port}")
-        success = True 
+        success = True
     except socket.gaierror as e:
         logger.error(f"Failed connection to socket {host}:{port}. Get Address Info (DNS) error prevented socket connection. Exception: {e}")
     except TimeoutError as e:
@@ -169,17 +168,17 @@ def checkWeb(host, port=80, path='/'):
     Checks connection to a web URL
     Returns True if the web request returns a 200
     Returns False if the web request returns anything but a 200
-    If host is an IP address, IP version is checked as IPv6 requires [ ] brackets 
+    If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
     '''
     fqdn = re.compile('(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
-    if fqdn.search(host): # Check if host is FQDN. If True, IP version does not matter 
+    if fqdn.search(host): # Check if host is FQDN. If True, IP version does not matter
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using FQDN")
-    elif isIPv4(host) == True: 
+    elif isIPv4(host) == True:
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using IPv4")
     else:
-        url = f"http://[{host}]:{port}{path}" 
+        url = f"http://[{host}]:{port}{path}"
         logger.info("checkWeb is using IPv6")
     logger.info(f"Attempting to reach {url}")
     try:
@@ -199,9 +198,9 @@ def checkWeb(host, port=80, path='/'):
 
 def checkService(service:dict):
     '''
-    Checks to see if the service is available once. 
-    Returns True is the service is reachable. 
-    Returns False is the service is unreachable. 
+    Checks to see if the service is available once.
+    Returns True is the service is reachable.
+    Returns False is the service is unreachable.
     '''
 
     logger.info(f"Checking availability of service: {service}")
@@ -213,7 +212,7 @@ def checkService(service:dict):
         reachable = checkSocket(service['host'],service['port'])
     elif service_type == 'web':
         reachable = checkWeb(service['host'], service['port'], service['path'])
-    
+
     if reachable:
         logger.info(f"Service available: {service}")
         return True
@@ -224,7 +223,7 @@ def checkService(service:dict):
 
 def waitForService(service:dict, interval=2, max_attempts=None):
     '''
-    Checks the service in a loop until it becomes available or max_attempts is reached. 
+    Checks the service in a loop until it becomes available or max_attempts is reached.
     Returns once the service is available or max_attempts is reached.
     Default time between checks is 2s.
     '''
@@ -245,7 +244,7 @@ def waitForService(service:dict, interval=2, max_attempts=None):
 
 def checkServiceLoop(service:dict, interval=30, max_checks=None):
     '''
-    Checks the availability of the service forever in a loop (or until max_checks is reached). Default time between checks is 30s. 
+    Checks the availability of the service forever in a loop (or until max_checks is reached). Default time between checks is 30s.
     '''
 
     logger.info(f"Checking service {service} every {interval} seconds")
@@ -258,5 +257,3 @@ def checkServiceLoop(service:dict, interval=30, max_checks=None):
             logger.info(f"Reached the maximum number of service checks ({max_checks}).. Will no longer check on service {service}.")
             return True
         sleep(interval)
-
-        

@@ -2,23 +2,23 @@
 
 {% block title %}Results{% endblock %}
 
-{% block header %}    
+{% block header %}
 {% endblock %}
 
 {% block content %}
 
 {% if g.globs.grading_enabled == False %}
-    <span id="title" style="padding-top:20px;">
-        There is no grading for this lab.
-    </span>
+<span id="title" style="padding-top:20px;">
+    There is no grading for this challenge.
+</span>
 {% else %}
-    <span id="title" style="padding-top:30px; padding-bottom:30px;">
-        Grading Results
-    </span>
+<span id="title" style="padding-top:30px; padding-bottom:30px;">
+    Grading Results
+</span>
 
-    <div id="results"></div>
+<div id="results"></div>
 
-    <script src=" {{ url_for('main.static',filename='js/results.js') }} "></script>
+<script src=" {{ url_for('main.static',filename='js/results.js') }} "></script>
 {% endif %}
 
 {% endblock %}

@@ -1,7 +1,7 @@
 (function () {
     x = setInterval(function () {
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "/lab/update", true);
+        xhr.open("GET", "/challenge/update", true);
         xhr.onerror = err => console.log('error: ' + err.message);
         xhr.onload = function() {
             if (this.readyState == 4 && this.status == 200) {
@@ -16,9 +16,9 @@
                     }
                     var err1 = document.createElement('h2');
                     err1.id ='err'
-                    err1.textContent = 'There was an error grading your lab';
+                    err1.textContent = 'There was an error grading your challenge';
                     var err2 = document.createElement('p');
-                    err2.textContent = 'The error grading your lab has been logged. You can attempt grading again. If the error does not resolve, please contact support.';
+                    err2.textContent = 'The error grading your challenge has been logged. You can attempt grading again. If the error does not resolve, please contact support.';
                     err1.appendChild(err2);
                     data.appendChild(err1);
 
@@ -41,7 +41,7 @@
                     }
                 }
                 else {
-                    /* create if statement checking if its already setup. don't want to constantly replace */
+                    /* checking if it is already setup.*/
                     child_check = document.getElementById('top-level');
                     if (data.contains(child_check)) {
                         data.removeChild(child_check)
@@ -77,7 +77,7 @@
                     /* create table contents */
                     if (res.manual_enabled == true) {
                         if (res.manual_results !== null ) {
-                            msg_chk = document.getElementById('gradenotran');
+                            msg_chk = document.getElementById('gradenotrun');
                             if (table.contains(msg_chk)) {
                                 table.removeChild(msg_chk)
                             }
@@ -132,7 +132,7 @@
                     }
                     if (res.cron_enabled == true) {
                         if (res.cron_results !== null ) {
-                            msg_chk = document.getElementById('gradenotran');
+                            msg_chk = document.getElementById('gradenotrun');
                             if (table.contains(msg_chk)) {
                                 table.removeChild(msg_chk)
                             }
@@ -176,7 +176,7 @@
                         }
                         else {
                             var tr6 = document.createElement('tr');
-                            tr.id = "gradenotran"
+                            tr.id = "gradenotrun"
                             var th = document.createElement('th');
                             th.colSpan = "3";
                             th.className = 'resspan';
@@ -186,7 +186,7 @@
                         }
                     }
                     var regrade = document.createElement('form');
-                    regrade.action = "/lab/tasks";
+                    regrade.action = "/challenge/tasks";
                     regrade.method = 'GET';
                     var link = document.createElement('a');
                     link.id = 'regrade';

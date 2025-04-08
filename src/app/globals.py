@@ -43,11 +43,11 @@ class Globals():
         self.services_status = dict()
         self.q_modes = set()
         self.question_order = []
-        self.lab_completed = False
-        self.lab_completion_time = ""
+        self.challenge_completed = False
+        self.challenge_completion_time = ""
         self.info_home_enabled = False
         self.services_home_enabled = False
-        # gameboad submission globals
+        # submission globals
         self.grader_url = ""
         self.grader_key = ""
         # cron specific globals
@@ -84,6 +84,6 @@ class Globals():
         self.task = None
         self.server_ready = False
         self.executor = None
-        ## scheduler contains scheduler object that is referenced when add/pausing/deleting jobs. 
+        ## scheduler contains scheduler object that is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
-        self.lab_name = ""
+        self.challenge_name = ""

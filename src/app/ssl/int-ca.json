@@ -2,12 +2,12 @@
   "names": [
     {
       "C": "US",
-      "O": "skills-hub CA"
+      "O": "challenge-server CA"
     }
   ],
   "key": {
     "algo": "rsa",
     "size": 2048
   },
-  "CN": "skills-hub CA"
+  "CN": "challenge-server CA"
 }

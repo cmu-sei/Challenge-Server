@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8;application/javascript">
@@ -13,26 +14,29 @@
 <body>
     <section>
         <span id="title">
-            Skills Hub
+            Challenge Server
         </span>
         <nav class="navbar">
             <div>
                 <ul class="navbarul">
                     <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.home')}}">Home</a></li>
                     {% if g.globs.info_home_enabled %}
-                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.home')}}">Starting Off</a></li>
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.home')}}">Starting Off</a>
+                    </li>
                     {% endif %}
                     {% if g.globs.grading_enabled %}
-                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.tasks')}}">Tasks</a></li>
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.tasks')}}">Tasks</a></li>
                     {% endif %}
                     {% if g.globs.hosted_files_enabled %}
-                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.list_files')}}">Hosted Files</a></li>
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.list_files')}}">Hosted
+                            Files</a></li>
                     {% endif %}
                     {% if g.globs.grading_enabled %}
-                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.results')}}">Results</a></li>
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.results')}}">Results</a></li>
                     {% endif %}
                     {% if g.globs.services_home_enabled == True %}
-                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.services')}}">Services</a></li>
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.services')}}">Services</a>
+                    </li>
                     {% endif %}
                 </ul>
             </div>
@@ -41,11 +45,11 @@
             <div>
                 <center>
                     {% with messages = get_flashed_messages() %}
-                        {% if messages %}
-                            <h3 class="notification" >
-                            {{ messages[-1]|safe }}
-                            </h3>
-                        {% endif %}
+                    {% if messages %}
+                    <h3 class="notification">
+                        {{ messages[-1]|safe }}
+                    </h3>
+                    {% endif %}
                     {% endwith %}
 
                     {% block content %}{% endblock %}
@@ -54,4 +58,5 @@
         </div>
     </section>
 </body>
+
 </html>

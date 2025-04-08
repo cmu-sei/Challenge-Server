@@ -2,7 +2,6 @@
 
 import subprocess, io, datetime, random, string, copy, os
 from flask import Blueprint, render_template, request, Response, current_app, redirect, url_for, abort, send_from_directory, jsonify, flash, g
-# local imports
 from app.extensions import logger, globals,db
 from app.functions import do_grade, check_questions,read_token
 from app.models import QuestionTracking
@@ -33,21 +32,21 @@ def tasks():
         else:
             parts_org[q_mode][key] = value
     return render_template('tasks.html', questions=parts_org)
-        
+
 
 @main.route('/grade', methods=['GET', 'POST'])
 def grade():
     '''
     This method gets called when a user requests grading (presses grade/submit button)
     The method will create the grading task and render the 'grading page' if the task is still running
-    When grading is done, the 'graded page' will be rendered. 
+    When grading is done, the 'graded page' will be rendered.
     '''
 
     if not globals.grading_enabled:
         return redirect(url_for("main.tasks"))
 
     check_questions()
-    if globals.lab_completed == True:
+    if globals.challenge_completed == True:
         return redirect(url_for('main.results'))
 
     if not globals.server_ready:
@@ -65,7 +64,7 @@ def grade():
             try_again = (globals.grading_rateLimit - (now_time - submit_time_time)).total_seconds().__int__()
             logger.info(f"Hit rate limit. Telling user to try again in {try_again} seconds")
             return redirect(url_for("main.tasks"))
-        
+
         globals.manual_submit_time = now_string
         logger.info(f"Submitting a grading task at {globals.manual_submit_time}")
         if request.method == "GET":
@@ -90,7 +89,7 @@ def grade():
         return redirect(url_for('main.results'))
         #else:
         #    return render_template("auto_submit.html", submit_time=globals.manual_submit_time)
-    
+
     # if the current grading task is still running, show the grading page with the last submit time
     if globals.task.running():
         logger.info("Grading task is still running")
@@ -104,9 +103,9 @@ def results():
 
 @main.route('/update',methods=['GET'])
 def updated_results():
-    if request.referrer != "https://skills.hub/lab/results":
+    if request.referrer != "https://challenge.us/challenge/results":
         return jsonify({"NOTICE":"Unauthorized access attempted."})
-    
+
     new_cron_results = copy.deepcopy(globals.cron_results) if globals.cron_results != None else dict()
     new_manual_results = copy.deepcopy(globals.manual_results) if globals.manual_results != None else dict()
 
@@ -117,7 +116,7 @@ def updated_results():
             try:
                 for q in globals.phases[ph]:
                     que_chk = QuestionTracking.query.filter_by(label=q).first()
-                    
+
                     if que_chk.q_type == 'cron':
                         if que_chk.solved == True:
                             globals.tokens['cron'][que_chk.label] = read_token(que_chk.label)
@@ -132,7 +131,7 @@ def updated_results():
                         else:
                             new_manual_results[que_chk.label] = "Failure" if que_chk.response == "N/A" else (f"Failure -- {que_chk.response}" if que_chk.response != "" else "Failure -- Has not been graded yet.")
                         continue
-                    
+
                 if ph == globals.current_phase:
                     break_loop = True
                     #break

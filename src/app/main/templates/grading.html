@@ -1,31 +1,31 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Grading{% endblock %} {% block header
+%} {% endblock %} {% block content %}
 
-{% block title %}Grading{% endblock %}
-
-{% block header %}
-{% endblock %}
-
-{% block content %}
-
-
-<span id="title" style="padding-top:30px; padding-bottom:30px;">
-   Grading in Progress
+<span id="title" style="padding-top: 30px; padding-bottom: 30px">
+    Grading in Progress
 </span>
 
 <form action="{{ url_for('main.grade') }}" method="GET" enctype="multipart/form-data">
     <fieldset>
         <table class="res-table">
             <thead class="res-thead">
-                <th class="grading"><label>Your lab is being graded</label></th>
+                <th class="grading"><label>Your challenge is being graded</label></th>
             </thead>
             <tr>
-                <td class="grading"><label>There are no results from your grading attempt at {{submit_time}} yet.</label></td>
+                <td class="grading">
+                    <label>There are no results from your grading attempt at {{submit_time}}
+                        yet.</label>
+                </td>
             </tr>
             <tr>
-                <td class="grading"><label>This page will auto-refresh every 5 seconds.<br><br> Additionally you can click the button below to see if your results are ready.</label></td>
+                <td class="grading">
+                    <label>This page will auto-refresh every 5 seconds.<br /><br />
+                        Additionally you can click the button below to see if your results
+                        are ready.</label>
+                </td>
             </tr>
         </table>
-    <input type="submit" name="refresh" value="Refresh" style="font-size: 20px;">
+        <input type="submit" name="refresh" value="Refresh" style="font-size: 20px" />
     </fieldset>
 </form>
 

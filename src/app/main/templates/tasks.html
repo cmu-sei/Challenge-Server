@@ -2,67 +2,67 @@
 
 {% block title %}Tasks{% endblock %}
 
-{% block header %}    
+{% block header %}
 {% endblock %}
 
 {% block content %}
 
 {% if g.globs.grading_enabled == False %}
-    <span id="title" style="padding-top:20px;">
-        There is no grading for this lab.
-    </span>
+<span id="title" style="padding-top:20px;">
+    There is no grading for this challenge.
+</span>
 {% else %}
-    <span id="title" style="padding-top:20px;">
-        Tasks
-    </span>
+<span id="title" style="padding-top:20px;">
+    Tasks
+</span>
 
-    <form method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data" id="min-top-padding">
+<form method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data" id="min-top-padding">
     <fieldset>
-        <!--<legend align='center'>Lab Questions</legend>-->
+        <!--<legend align='center'>Challenge Questions</legend>-->
         <table class="res-table">
             {% if 'text' in questions.keys() %}
-                <thead class="res-thead" >
-                    <th class="q_item1"><label>Task</label></th>
-                    <th class="q_item2"><label>Submission</label></th>
-                </thead>
-                {% for key, value in questions['text'].items() %}
-                    <tr class="bodypost">
-                        <td class="q_item1"><label>{{ value['text'] }}</label></td>
-                        <td class="q_item2"><input type='text' name="{{key}}" value=""></td>
-                    </tr>
-                {% endfor %}
+            <thead class="res-thead">
+                <th class="q_item1"><label>Task</label></th>
+                <th class="q_item2"><label>Submission</label></th>
+            </thead>
+            {% for key, value in questions['text'].items() %}
+            <tr class="bodypost">
+                <td class="q_item1"><label>{{ value['text'] }}</label></td>
+                <td class="q_item2"><input type='text' name="{{key}}" value=""></td>
+            </tr>
+            {% endfor %}
             {% endif %}
             {% if 'button' in questions.keys() %}
-                <tr class="bodypost" style="padding-top: 15px;font-size: 20px;">
-                    <th colspan=2 class="q_long_line">Tasks below will be graded once 'submit' button is clicked.</th>
-                </tr>   
-                {% for key, value in questions['button'].items() %}
-                    <tr class="bodypost">
-                        <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
-                        <td hidden><input type="hidden" name="{{key}}"></td>
-                    </tr>
-                {% endfor %}
+            <tr class="bodypost" style="padding-top: 15px;font-size: 20px;">
+                <th colspan=2 class="q_long_line">Tasks below will be graded once 'submit' button is clicked.</th>
+            </tr>
+            {% for key, value in questions['button'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+                <td hidden><input type="hidden" name="{{key}}"></td>
+            </tr>
+            {% endfor %}
             {% endif %}
-            {% if 'cron' in questions.keys()  %}
-                <tr class="bodypost">
-                    <th colspan=2 class="q_long_line">Tasks below will be auto-graded and are checked 
+            {% if 'cron' in questions.keys() %}
+            <tr class="bodypost">
+                <th colspan=2 class="q_long_line">Tasks below will be auto-graded and are checked
                     {% if g.globs.cron_type == 'at' %}
-                        at {{ g.globs.cron_at }}
+                    at {{ g.globs.cron_at }}
                     {% else %}
-                        every {{ g.globs.cron_interval }} seconds
-                    {% endif %}        
-                    </th>
-                </tr>
-                {% for key, value in questions['cron'].items() %}
-                    <tr class="bodypost">
-                        <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
-                    </tr>
-                {% endfor %}
+                    every {{ g.globs.cron_interval }} seconds
+                    {% endif %}
+                </th>
+            </tr>
+            {% for key, value in questions['cron'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+            </tr>
+            {% endfor %}
             {% endif %}
         </table>
         <br>
         <input type="submit" name="submit" value="Submit" style="font-size: 20px;">
     </fieldset>
-    </form>
+</form>
 {% endif %}
 {% endblock %}

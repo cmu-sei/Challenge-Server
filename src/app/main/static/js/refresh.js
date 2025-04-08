@@ -1,3 +1,3 @@
 setTimeout(function(){
-    window.location.href = "/lab/grade"
+    window.location.href = "/challenge/grade"
 }, 5000);

@@ -1,10 +1,9 @@
-server{ 
+server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name http.kali.org;
-	
 	location / {
 		proxy_pass http://10.6.0.6/kali/;
 	}
@@ -14,10 +13,9 @@ server{
 
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name packages.microsoft.com;
-
 	location / {
 		proxy_pass http://10.6.0.6/vscode/;
 	}
@@ -26,10 +24,9 @@ server{
 server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name download.opensuse.org;
-
 	location / {
 		proxy_pass http://10.6.0.6/zeek/;
 	}
@@ -38,10 +35,9 @@ server{
 server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name pypi.org;
-
 	location / {
 		proxy_pass http://10.6.0.6/pypi/;
 	}
@@ -50,10 +46,9 @@ server{
 server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name security.ubuntu.com;
-
 	location / {
 		proxy_pass http://10.6.0.6/ubuntu-security/;
 	}
@@ -62,8 +57,8 @@ server{
 server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name .archive.ubuntu.com;
 
 	location / {
@@ -71,25 +66,23 @@ server{
 	}
 }
 
-server{ 
+server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name mirrors.centos.org;
-	
 	location / {
 		proxy_pass http://10.6.0.6/centos/;
 	}
 }
 
-server{ 
+server{
 	listen 80;
 	listen 443 ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
 	server_name download.docker.com;
-	
 	location / {
 		proxy_pass http://10.6.0.6/docker-apt/;
 	}
@@ -98,9 +91,9 @@ server{
 
 server{
 	listen 443 default ssl;
-	ssl_certificate /home/user/skillsHub/app/ssl/cert-bundle.crt;
-	ssl_certificate_key /home/user/skillsHub/app/ssl/host-key.pem;
-	server_name skills.hub;
+	ssl_certificate /home/user/challengeServer/app/ssl/cert-bundle.crt;
+	ssl_certificate_key /home/user/challengeServer/app/ssl/host-key.pem;
+	server_name challenge.us;
 
 	location / {
 		proxy_pass https://127.0.0.1:8888;
@@ -115,12 +108,12 @@ server{
 	location = /502.html {
 		root /usr/share/nginx/html;  # Path where your 502.html file is stored
 		internal;
-	}				 
+	}
 
 }
 
 server{
 	listen 80;
-	server_name skills.hub;
-	return 301 https://skills.hub$request_uri;
+	server_name challenge.us;
+	return 301 https://challenge.us$request_uri;
 }

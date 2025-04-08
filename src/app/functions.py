@@ -5,8 +5,6 @@ from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
-
-# local imports
 from app.extensions import logger, globals, db
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 
@@ -19,12 +17,12 @@ def read_config(app):
     with open(globals.yaml_path, 'r') as config_file:
         try:
             conf = yaml.safe_load(config_file)
-            logger.info(f"Skills Hub Config: {conf}")
+            logger.info(f"Config: {conf}")
         except yaml.YAMLError:
             logger.error("Error Reading YAML in config file")
             exit(1)
-    
-    globals.lab_name = conf['lab_name']
+
+    globals.challenge_name = conf['challenge_name']
 
     # configure required services. Empty array if setting is not in config
     globals.required_services = conf['required_services'] if 'required_services' in conf else []
@@ -34,7 +32,7 @@ def read_config(app):
         if 'host' not in service:
             logger.error(f"Missing host definition in required service: {service}")
             exit(1)
-        # ensure type is defined in required services. If not defined, default to ping type. 
+        # ensure type is defined in required services. If not defined, default to ping type.
         if 'type' not in service:
             logger.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
             service['type'] = "ping"
@@ -124,7 +122,7 @@ def read_config(app):
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
                 exit(1)
-        
+
         if conf['grading']['cron_grading']:
         # set cron grading script. Error if script is not defined or not executable
             globals.grading_mode.append('cron')
@@ -140,14 +138,14 @@ def read_config(app):
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if grading script {globals.cron_grading_script} is executable.")
                 exit(1)
-                
+
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
         globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
         logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
 
-        
+
 
         # set token location. "guestinfo" is default. Error if not recognized.
         globals.token_location = conf['grading']['token_location'] if 'token_location' in conf['grading'] else 'guestinfo'
@@ -180,7 +178,7 @@ def read_config(app):
         else:
             globals.grader_key = get_grader_key_cmd.stdout.decode('utf-8').strip() if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_key']
             logger.info(f"Grader Key: {globals.grader_key}")
-            
+
         # Check for service logger config in yml & assign if enabled
         services_list = conf['services_to_log'] if 'services_to_log' in conf else []
         if services_list == []:
@@ -205,14 +203,14 @@ def read_config(app):
                     exit(1)
                 globals.phases = conf['grading']['phase_info']
                 globals.phase_order = sorted(list(globals.phases.keys()),key=str.casefold)
-                if 'mini_lab' in globals.phase_order:
+                if 'mini_challenge' in globals.phase_order:
                     tmp = globals.phase_order.pop(0)
                     globals.phase_order.append(tmp)
                 try:
                     globals.current_phase = get_current_phase()
                 except KeyError as e:
                     globals.current_phase = globals.phase_order[0]
-                    
+
                 p_restart = False
                 try:
                     p_chk = PhaseTracking.query.all()
@@ -222,7 +220,7 @@ def read_config(app):
                     ...
                 if p_restart == False:
                     try:
-                        
+
                         for ind,phase in enumerate(globals.phase_order):
                             new_phase = PhaseTracking(id=ind, label=phase, tasks=','.join(globals.phases[phase]), solved=False,time_solved="---")
                             db.session.add(new_phase)
@@ -230,7 +228,7 @@ def read_config(app):
                     except Exception as e:
                         logger.error(f"Exception occurred: Unable to add phase {phase} to DB. Exception:{e}.\nExiting.")
                         exit(1)
-                
+
             ## Here we will add all questions to DB for tracking
             globals.question_order = sorted(list(globals.grading_parts.keys()),key=str.casefold)
             q_restart = False
@@ -266,12 +264,12 @@ def check_questions():
             if q.solved == True:
                 solved_tracker+= 1
         if solved_tracker == expected:
-            globals.lab_completed == True
-            globals.lab_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            new_event = EventTracker(data=json.dumps({"lab":globals.lab_name, "support_code":globals.support_code, "event_type":"Lab Completed","recorded_at":globals.lab_completion_time}))
+            globals.challenge_completed == True
+            globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
-            
+
 
 
 def get_current_phase():
@@ -284,8 +282,8 @@ def get_current_phase():
             if cur_phase.solved == False:
                 globals.current_phase = cur_phase.label
                 return cur_phase.label
-        globals.lab_completed == True
-        globals.lab_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        globals.challenge_completed == True
+        globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         return "completed"
 
 def update_db(type_q,label=None, val=None):
@@ -295,7 +293,7 @@ def update_db(type_q,label=None, val=None):
                 cur_question = QuestionTracking.query.filter_by(label=label).first()
                 if cur_question == None:
                     logger.error("No entry found in DB while attempting to mark question completed. Exiting")
-                    exit(1) 
+                    exit(1)
                 if (val != None) and ('--' in val):
                     cur_question.response = val.split('--',1)[1]
                 if ('--' not in val) and (cur_question.response == ''):
@@ -308,13 +306,13 @@ def update_db(type_q,label=None, val=None):
                 logger.error(f"Exception occurred while update DB with completed question. Exception: {e}. Exiting.")
                 exit(1)
             logger.info(f"Question {cur_question.label} marked completed in DB.")
-            
+
         else:
             for p in globals.phase_order:
                 phase = PhaseTracking.query.filter_by(label=p).first()
                 if phase == None:
                     logger.error("No entry found in DB while attempting to find current phase during DB update. Exiting")
-                    exit(1) 
+                    exit(1)
                 if phase.solved == False:
                     q_list = phase.tasks.split(',')
                     num_q = len(q_list)
@@ -322,7 +320,7 @@ def update_db(type_q,label=None, val=None):
                         cur_q = QuestionTracking.query.filter_by(label=q).first()
                         if cur_q == None:
                             logger.error("No entry found in DB while attempting to update phase DB. Exiting")
-                            exit(1) 
+                            exit(1)
                         if cur_q.solved == True:
                             num_q -= 1
                     if num_q == 0:
@@ -334,7 +332,7 @@ def update_db(type_q,label=None, val=None):
                         return
 
 
-####### 
+#######
 # functions to be used during grading process
 #######
 def do_grade(args):
@@ -350,7 +348,7 @@ def do_grade(args):
             logger.info(f"The key {ques} is not a valid grading aspect or valid part of question configuration. Skipping")
             continue
         if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] != "button"):
-            index = int(ques[-1]) 
+            index = int(ques[-1])
             manual_grading_list.insert(index,{ques:ans})
 
     grade_cmd = [f"{globals.custom_script_dir}/{globals.manual_grading_script}"]
@@ -361,13 +359,13 @@ def do_grade(args):
         for entry in manual_grading_list:
             grade_args[list(entry.keys())[0]] = list(entry.values())[0]
         grade_cmd.append(json.dumps(grade_args))
-        
+
     #submissions_list = list()
     #for sub in manual_grading_list:
     #    cur_val = list(sub.values())[0]
     #    submissions_list.append(cur_val)
     #sub_string = ' '.join(submissions_list)
-    
+
 
     if globals.phases_enabled == True:
         current_phase = get_current_phase()
@@ -377,7 +375,7 @@ def do_grade(args):
             tmp = [f'{grade_key} : Success' for grade_key in globals.grading_parts.keys()]
             results = dict(tmp)
             return get_results(results)
-            
+
     try:
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
         logger.info(f"Grading process finished: {out}")
@@ -399,7 +397,7 @@ def do_grade(args):
 
     with current_app.app_context():
         event_data = {
-            "lab":globals.lab_name,
+            "challenge":globals.challenge_name,
             "support_code":globals.support_code,
             "event_type":"Grading Result",
             "output":results,
@@ -420,11 +418,7 @@ def do_grade(args):
                 results[grading_key] = "Failed"
 
     for k,v in results.items():
-        #if "success" in v.lower():
         update_db('q',k,v)
-        ## Below code was going to be used to store responses provided from grading in backend DB. But currently it doesnt seem needed
-        #elif "--" in v:
-        #    update_db('comm')
 
     return get_results(results)
 
@@ -434,12 +428,12 @@ def check_db(label):
         cur_question = QuestionTracking.query.filter_by(label=label).first()
         if cur_question == None:
             logger.error("No entry found in DB while attempting to mark question completed. Exiting")
-            exit(1) 
+            exit(1)
         return cur_question.solved
 
 
 def get_results(results):
-    # for each result that is returned, check if success is in the message. 
+    # for each result that is returned, check if success is in the message.
     # If success is in the message, then read and store the token for that check
     end_results = results.copy()
     tokens = {}
@@ -464,7 +458,7 @@ def get_results(results):
 
 def done_grading(future: Future):
     '''
-    Callback function for do_grade. 
+    Callback function for do_grade.
     It is meant to check to see if the results need to be PUT to the grading server
     '''
     results, tokens = future.result()
@@ -484,11 +478,11 @@ def post_submission(tokens: dict):
     This method will send a POST to the grader for automatic grading.
     All POST attempts are logged.
     Method will try 4 times (sleep 1 second between each failed attempt).
-    After 4 failures, the method will log an error and return. 
+    After 4 failures, the method will log an error and return.
     '''
     token_values = tokens.values()
-    
-    
+
+
     # build the request headers and payload to send to the grader
     headers = {
         "accept": "text/plain",
@@ -500,7 +494,7 @@ def post_submission(tokens: dict):
         payload = payload + f'{{"answer":"{token}"}},'
     payload = payload[:-1] + "]}"
 
-    
+
     # Try to POST results to the grader 4 times
     ## return immediately on success
     ## log error if still failure after 4 tries
@@ -508,7 +502,7 @@ def post_submission(tokens: dict):
     while attempts < 4:
         logger.info(f"Attempting {globals.grading_verb} submission to URL: {globals.grader_url}\tHeaders: {headers}\tPayload: {payload}")
         attempts = attempts + 1
-        try: 
+        try:
             if globals.grading_verb == "POST":
                 r = requests.post(globals.grader_url, data=payload, headers=headers)
                 if r.status_code == 200:
@@ -530,7 +524,7 @@ def post_submission(tokens: dict):
                     logger.error(f"Got {r.status_code} from {globals.grader_url} attempting to PUT. Message: {r.content}")
         except Exception as e:
             logger.error(f"Got exception {e} while trying to PUT/POST data to {globals.grader_url}")
-        
+
         sleep(1)
         logger.info("Trying grader submission again after failure on previous attempt.")
 
@@ -539,7 +533,7 @@ def post_submission(tokens: dict):
     globals.fatal_error = True
 
 
-####### 
+#######
 # functions specifically used for cron grading
 #######
 def set_cron_vars(conf):
@@ -567,7 +561,7 @@ def set_cron_vars(conf):
     if 'no value' in cron_delay_cmd.stderr.decode('utf-8').lower():
         globals.cron_delay = conf['grading']['cron_delay'] if conf['grading']['cron_delay'] else 0
     else:
-        globals.cron_delay = int(cron_delay_cmd.stdout.decode('utf-8'))  
+        globals.cron_delay = int(cron_delay_cmd.stdout.decode('utf-8'))
         logger.info(f"Using a guestinfo var intended for testing: cron_delay = {globals.cron_delay}")
 
 
@@ -591,7 +585,7 @@ def set_cron_vars(conf):
     else:
         globals.cron_type = "every"
         time_diff = 0
-    
+
     globals.cron_delay = globals.cron_delay + time_diff
 
 
@@ -602,18 +596,18 @@ def do_cron_grade():
     '''
     #logger.info(f"---------Calling {globals.manual_grading_script} with arguments: {args}")
     globals.fatal_error = False
-        
+
     try:
         out = subprocess.run([f"{globals.custom_script_dir}/{globals.cron_grading_script}"], capture_output=True, check=True)
         logger.info(f"Grading process finished: {out}")
         output = out.stdout.decode('utf-8')
-    
+
     # Something happened if there was a non-zero exit status. Log this and set fatal_error
     except subprocess.CalledProcessError as e:
         logger.error(f"Grading script {globals.manual_grading_script} returned with non-zero exit status {e.returncode}.\tStdout: {e.stdout}\tStderr: {e.stderr}")
         globals.fatal_error = True
         output = ""
-    
+
     results = []
     for sub in output.split('\n'):
         if ':' in sub:
@@ -629,7 +623,7 @@ def do_cron_grade():
             logger.info(f"Grading script, {globals.cron_grading_script}, did not yield a result for grading part {grading_key}. Assigning value of 'Failed'")
             results[grading_key] = "Failed"
 
-    # for each result that is returned, check if success is in the message. 
+    # for each result that is returned, check if success is in the message.
     # If success is in the message, then read and store the token for that check
     end_results = results.copy()
     tokens = {}
@@ -648,7 +642,7 @@ def do_cron_grade():
 
 def run_cron_thread():
     '''
-    This method is meant to be run inside  a thread. 
+    This method is meant to be run inside  a thread.
     The method will run do_grade on a timer (similar to a cron job)
     '''
     limit = globals.cron_limit
@@ -670,12 +664,12 @@ def run_cron_thread():
 
 
 
-####### 
+#######
 # function to be used for handling tokens
 #######
 def read_token(part_name):
     '''
-    Function below reads tokens from files. 
+    Function below reads tokens from files.
     Assumes files are in the standard Kali Iso location and that tokens are only 1 line long
 
     This method takes a Check name as an argument. Examples can be "Check1", "Check2", etc.
@@ -689,10 +683,10 @@ def read_token(part_name):
         if globals.grader_post:
             globals.fatal_error = True
         return "Unexpected error encountered. Contact an administrator."
-    
+
     # pull tokens from guestinfo if that is the setting
     if globals.token_location == 'guestinfo':
-        try: 
+        try:
             output = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.{value}'", shell=True, capture_output=True)
             if 'no value' in output.stderr.decode('utf-8').lower():
                 logger.error(f"No value found when querying guestinfo variables for guestinfo.{value}")
@@ -705,7 +699,7 @@ def read_token(part_name):
             if globals.grader_post:
                 globals.fatal_error = True
             return "Unexpected error encountered. Contact an administrator."
-    
+
     # read token from file if guestinfo is not the setting
     else:
         try:
@@ -716,7 +710,7 @@ def read_token(part_name):
             if globals.grader_post:
                 globals.fatal_error = True
             return "Unexpected error encountered. Contact an administrator."
- 
+
 #def get_file_list():
 #    files = {}
 #    for filename in os.listdir(globals.hosted_file_directory):
@@ -738,26 +732,26 @@ def get_logs(service):
             get_status_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'systemctl is-active {service['service']}'"
             status_response = subprocess.run(get_status_cmd, shell=True,capture_output=True, timeout=10)
         except subprocess.TimeoutExpired:
-            logger.error(f"SERIVCE_LOGGER: request to host timed out.")
+            logger.error(f"SERVICE_LOGGER: request to host timed out.")
             globals.services_status[service['service']] = [service['host'],f"request to host timed out. Trying again shortly"]
             continue
         except Exception as e:
-            logger.error(f"SERIVCE_LOGGER: Exception has occurred when attempting to retrieve service status.")
-            logger.error(f"SERIVCE_LOGGER: Exception: {e}")
+            logger.error(f"SERVICE_LOGGER: Exception has occurred when attempting to retrieve service status.")
+            logger.error(f"SERVICE_LOGGER: Exception: {e}")
             globals.services_status[service['service']] = [service['host'],f"Exception has occurred when attempting to retrieve service status."]
             continue
         if status_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERIVCE_LOGGER: Error has occurred when attempting to get service status.")
-            logger.error(f"SERIVCE_LOGGER: Error: {status_response.stderr.decode('utf-8')}")
+            logger.error(f"SERVICE_LOGGER: Error has occurred when attempting to get service status.")
+            logger.error(f"SERVICE_LOGGER: Error: {status_response.stderr.decode('utf-8')}")
             globals.services_status[service['service']] = [service['host'],f"Error has occurred when attempting to get service status."]
             continue
         if status_response.stdout.decode('utf-8').strip('\n') == 'failed':
             er = "SERVICE FAILED: "
-            logger.error(f"SERIVCE_LOGGER: {er} {service['service']} is in failed state.")
+            logger.error(f"SERVICE_LOGGER: {er} {service['service']} is in failed state.")
             globals.services_status[service['service']] = [service['host'],f"Service is in failed state."]
         elif status_response.stdout.decode('utf-8').strip('\n') == 'inactive':
             er = "SERVICE INACTIVE: "
-            logger.error(f"SERIVCE_LOGGER: {er} {service['service']} is in inactive state.")
+            logger.error(f"SERVICE_LOGGER: {er} {service['service']} is in inactive state.")
             globals.services_status[service['service']] = [service['host'],f"Service is in inactive state."]
         else:
             globals.services_status[service['service']] = [service['host'],f"Service is in active state."]
@@ -767,29 +761,29 @@ def get_logs(service):
             log_response = subprocess.run(get_log_cmd, shell=True,capture_output=True,timeout=10)
             cur_logs = log_response.stdout.decode('utf-8')
         except subprocess.TimeoutExpired:
-            logger.error(f"SERIVCE_LOGGER: SSH connection to host timed out.")
+            logger.error(f"SERVICE_LOGGER: SSH connection to host timed out.")
             continue
         except Exception as e:
-            logger.error(f"SERIVCE_LOGGER: Exception has occurred when attempting to retrieve logs.")
-            logger.error(f"SERIVCE_LOGGER: Exception: {e}")
+            logger.error(f"SERVICE_LOGGER: Exception has occurred when attempting to retrieve logs.")
+            logger.error(f"SERVICE_LOGGER: Exception: {e}")
             continue
         if log_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERIVCE_LOGGER: Error has occurred when attempting to collect logs.")
-            logger.error(f"SERIVCE_LOGGER: Error: {log_response.stderr.decode('utf-8')}")
+            logger.error(f"SERVICE_LOGGER: Error has occurred when attempting to collect logs.")
+            logger.error(f"SERVICE_LOGGER: Error: {log_response.stderr.decode('utf-8')}")
             continue
         if "No entries" in cur_logs:
             if er != False:
-                logger.error(f"SERIVCE_LOGGER: {er} No new logs fe.")
+                logger.error(f"SERVICE_LOGGER: {er} No new logs fe.")
             else:
-                logger.info(f"SERIVCE_LOGGER: No new logs found at this time.")
+                logger.info(f"SERVICE_LOGGER: No new logs found at this time.")
             continue
         output = cur_logs.split("\n")
         output.remove("")
         for line in output:
             if er == False:
-                logger.info(f"SERIVCE_LOGGER: {line}")
+                logger.info(f"SERVICE_LOGGER: {line}")
             else:
-                logger.error("SERIVCE_LOGGER: "+ er + line)
+                logger.error("SERVICE_LOGGER: "+ er + line)
         log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
@@ -803,7 +797,7 @@ def record_solves():
             for q in v:
                 if q.solved == True:
                     cur_data = {
-                        "lab":globals.lab_name,
+                        "challenge":globals.challenge_name,
                         "support_code":globals.support_code,
                         "event_type":k,
                         k: q.label,

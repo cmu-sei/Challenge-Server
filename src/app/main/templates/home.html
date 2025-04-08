@@ -8,53 +8,59 @@
 {% block content %}
 
 <div class="welcome-message">
-    <h1><u>Welcome to the {{g.globs.lab_name}} lab</u></h1>
+    <h1><u>Welcome to the {{g.globs.challenge_name}} challenge</u></h1>
     <h3>
-       The information below will provide insight on the functionality of the pages present on this website.
+        The information below will provide insight on the functionality of the pages present on this website.
     </h3>
     <form>
-    <fieldset style="width:70%;">
-        <table class="res-table">
-            <thead class="res-thead">
-                <th class="home_table_page">Page</th>
-                <th class="home_table_func">Functionality</th>
-            </thead>
-            <tr>
-                <td class="home_table_page">Home</td>
-                <td class="home_table_func">This landing page</td>
-            </tr>
-            {% if g.globs.info_home_enabled %}
-            <tr>
-                <td class="home_table_page">Starting Off</td>
-                <td class="home_table_func">Provides some information regarding the network and getting started.</td>
-            </tr>
-            {% endif %}
-            {% if g.globs.grading_enabled %}
-            <tr>
-                <td class="home_table_page">Tasks</td>
-                <td class="home_table_func">Will list the current tasks you are being graded for. These will change as you progress throughout the challenge</td>
-            </tr>
-            {% endif %}
-            {% if g.globs.hosted_files_enabled %}
-            <tr>
-                <td class="home_table_page">Hosted Files</td>
-                <td class="home_table_func">This page will present any files that may be available for download if the lab requires any.</ul></td>
-            </tr>
-            {% endif %}
-            {% if g.globs.grading_enabled %}
-            <tr>
-                <td class="home_table_page">Results</td>
-                <td class="home_table_func">This page will present the results of the last grading attempt.</ul></td>
-            </tr>
-            {% endif %}
-            {% if g.globs.services_home_enabled == True %}
-            <tr>
-                <td class="home_table_page">Services</td>
-                <td class="home_table_func">This page will present the status of various services in your network. If you run into issues regarding some tasks/services, this page may be useful.</td>
-            </tr>
-            {% endif %}
-        </table>
-    </fieldset>
+        <fieldset style="width:70%;">
+            <table class="res-table">
+                <thead class="res-thead">
+                    <th class="home_table_page">Page</th>
+                    <th class="home_table_func">Functionality</th>
+                </thead>
+                <tr>
+                    <td class="home_table_page">Home</td>
+                    <td class="home_table_func">This landing page</td>
+                </tr>
+                {% if g.globs.info_home_enabled %}
+                <tr>
+                    <td class="home_table_page">Starting Off</td>
+                    <td class="home_table_func">Provides some information regarding the network and getting started.
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.grading_enabled %}
+                <tr>
+                    <td class="home_table_page">Tasks</td>
+                    <td class="home_table_func">Will list the current tasks you are being graded for. These will change
+                        as you progress throughout the challenge</td>
+                </tr>
+                {% endif %}
+                {% if g.globs.hosted_files_enabled %}
+                <tr>
+                    <td class="home_table_page">Hosted Files</td>
+                    <td class="home_table_func">This page will present any files that may be available for download if
+                        the challenge requires any.</ul>
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.grading_enabled %}
+                <tr>
+                    <td class="home_table_page">Results</td>
+                    <td class="home_table_func">This page will present the results of the last grading attempt.</ul>
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.services_home_enabled == True %}
+                <tr>
+                    <td class="home_table_page">Services</td>
+                    <td class="home_table_func">This page will present the status of various services in your network.
+                        If you run into issues regarding some tasks/services, this page may be useful.</td>
+                </tr>
+                {% endif %}
+            </table>
+        </fieldset>
     </form>
 </div>
 

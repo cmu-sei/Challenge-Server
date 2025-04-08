@@ -8,9 +8,9 @@
     "algo": "rsa",
     "size": 2048
   },
-  "CN": "skills-hub",
+  "CN": "Challenge Server",
   "hosts": [
-    "skills.hub",
-    "*.skills.hub"
+    "challenge.us",
+    "*.challenge.us"
   ]
 }

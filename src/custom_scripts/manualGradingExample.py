@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import paramiko, json, sys, subprocess, os
+import paramiko, json, sys
 
 #####
 # NOTE:
-# Please read the `grading_README.md` file to get explanation of how the Skills Hub handles grading 
-# and requirements needed in your script.
+# Please read the `grading_README.md` file to understand how the Challenge Server handles grading
+# and grading script requirements.
 #####
 
 def runSSHCommand(username=None, password=None, hostname=None, cmdList=None):
@@ -57,7 +57,7 @@ def phase2(sub=None):
     results = dict()
     results['GradingCheck3'] = "Failure"
     return results
-    
+
 
 def phase3(sub=None):
     results = dict()
@@ -66,7 +66,7 @@ def phase3(sub=None):
 
 
 if __name__ == '__main__':
-    # phases variable should contain list of all phases implemented in the lab & has a function declared above
+    # phases variable should contain list of all phases implemented in the challenge & has a function declared above
     phases = ['phase1','phase2','phase3']
     args = sys.argv[1:]
     if len(args) > 0:
@@ -75,22 +75,22 @@ if __name__ == '__main__':
             ## This code will execute IF phases is enabled & current phase was passed to script.
             args.pop(-1)
             if len(args) != 0:
-                ## This code executes if user submitted answer & it was passed to grading script. 
+                ## This code executes if user submitted answer & it was passed to grading script.
                 submissions = json.loads(args[0])
                 res = globals()[passed_phase](submissions)
             else:
                 # This code executes if no submission made from user
                 res = globals()[passed_phase]()
-                
+
             for key,val in res.items():
                 print(key, ' : ', val)
         else:
-            # This code will execute if phases are disabled BUT there is still a submission from the user. For this example, we will execute all the functions above. 
+            # This code will execute if phases are disabled BUT there is still a submission from the user. For this example, we will execute all the functions above.
             submissions = json.loads(args[0])
             res = dict()
-            for phase in phases:    
+            for phase in phases:
                 res.update(globals()[phase](submissions))
-                
+
             for key,val in res.items():
                 print(key, ' : ', val)
     else:

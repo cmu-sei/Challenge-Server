@@ -2,7 +2,6 @@
 
 import logging
 from flask_sqlalchemy import SQLAlchemy
-# local imports
 from app.globals import Globals
 
 
@@ -17,5 +16,5 @@ db = SQLAlchemy()
 globals = Globals()
 
 # configure logging obj (default log level of INFO)
-logging.basicConfig(format=f'SKILLS-HUB | %(threadName)s | %(levelname)s | {globals.support_code} | {globals.challenge_code} | Variant {globals.variant_index} | %(message)s', level=logging.INFO)
-logger = logging.getLogger("skillsHub")
+logging.basicConfig(format=f'CHALLENGE-SERVER | %(threadName)s | %(levelname)s | {globals.support_code} | {globals.challenge_code} | Variant {globals.variant_index} | %(message)s', level=logging.INFO)
+logger = logging.getLogger("challengeServer")
