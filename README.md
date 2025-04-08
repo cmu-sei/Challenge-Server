@@ -10,7 +10,7 @@ _Disclaimer: The Challenge Server was developed with under the assumption that i
 
 The Challenge Server primarily consists of a web server written in Python. At startup, the server will read the config file and apply those settings. Then, the server will run startup scripts, host files for download, supply ways for users to ask for grading, and more!
 
-Edit the [config.yml](./config.yml) file to configure the service to behave how you'd like. The config file is heavily commented to help figure out which settings you may need.
+Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. The config file is heavily commented to help figure out which settings you may need.
 
 In most cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
 
@@ -59,18 +59,18 @@ Required services can also block startup scripts from executing. This is useful 
 
 ## Service Logger
 
-The Challenge Server comes with an additional `service_logger` that can be used to collect logs service logs from other VMs in the challenge environment. Use the [service_logger config file](./monitored_services/services_config.yml) and [systemd service](./monitored_services/monitoredServices.service) to enable this additional functionality.
+The Challenge Server comes with an additional `service_logger` that can be used to collect logs service logs from other VMs in the challenge environment. This additional feature is detailed more [here](./src/README.md)
 
 ## Startup Configuration
 
 You can use the Challenge Server as a central location for configuring all the machines in your environment.
 
-1. Write a startup script (or more than 1) that will remotely configure each machine in your environment to the challenge's specifications. Place all startup scripts in the [custom_scripts](custom_scripts) directory and ensure they are executable (`chmod +x <your_script>`)
+1. Write a startup script (or more than 1) that will remotely configure each machine in your environment to the challenge's specifications. Place all startup scripts in the [custom_scripts](./src/custom_scripts) directory and ensure they are executable (`chmod +x <your_script>`)
 1. You can use ssh, psexec, powershell remoting, or any other way to remotely manage each machine in your environment.
 1. Your startup script should log all important actions/results to standard out.
 1. You can optionally use the `required_services` section to block startup scripts from running until required services are available. This is useful in cases where you need SSH to be available on a target machine for your startup script to function as intended.
 
-Example startup scripts are [here](./custom_scripts/).
+Example startup scripts are [here](./src/custom_scripts/).
 
 ## Grading
 
@@ -99,7 +99,7 @@ There are several types of grading that are supported by this server.
   - In this style of grading, the user is not expected to take any action for grading to occur. Grading happens on an interval and/or at a scheduled time
   - Additional config settings maybe be required for this style to operate to your challenge's specs.
 
-More information about using each grading type is provided in the comments of the [config](./config.yml) file.
+More information about using each grading type is provided in the comments of the [config](./src/config.yml) file.
 
 ### Grading Scripts
 
@@ -122,7 +122,7 @@ Check4: Failure
 
 Feel free to include as much or as little detail in the message as you'd like the competitor to see. The only requirement is: The word 'success' must be present in the `value` field of any part you want to display a token for.
 
-The Grading Server will use the `keys` output by the grading script to display output to the user. The `config.yml` file allows you to specify the text to display to the user for each part and the location to look for tokens.
+The Grading Server will use the `keys` output by the grading script to display output to the user. The [config.yml](./src/config.yml) file allows you to specify the text to display to the user for each part and the location to look for tokens.
 
 The Grading Server will also display the `values` output by the grading script to the user. This can help the user figure out why they failed a particular part if useful messages are provided. **Do not include any text in the values that you do not want users to see.**
 
@@ -134,7 +134,7 @@ Your grading script should start with a 'shebang' line which gives the absolute 
 
 Your grading script must have the executable bit set. Ensure you run the following command: `chmod +x <your_script>`.
 
-Example grading scripts are [here](./custom_scripts/).
+Example grading scripts are [here](./src/custom_scripts/).
 
 ### Submitting Grading Results
 
@@ -148,4 +148,4 @@ This server supports 2 methods for grading results.
 
 ## Hosting Files
 
-This server can be used to host any files you need to share with the competitor inside the challenge environment. To host files, place the files in the `hosted_files` directory.  This will allow competitors to download the files from inside their challenge environment.
+This server can be used to host any files you need to share with the competitor inside the challenge environment. To host files, place the files in the [hosted_files](./src/hosted_files/) directory.  This will allow competitors to download the files from inside their challenge environment.
