@@ -62,8 +62,8 @@ grading:
 
   submission:
     method: display
-    grader_url: "https://presidentscup.cisa.gov/gb/pc/"
-    grader_key: "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    grader_url: ""
+    grader_key: ""
 
   parts:
     GradingCheck1:
