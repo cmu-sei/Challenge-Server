@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 # Challenge Sever
 # Copyright 2024 Carnegie Mellon University.
