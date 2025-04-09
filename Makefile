@@ -23,7 +23,7 @@ venv:
 	sudo $(VENV_DIR)/bin/pip install -r $(REQUIREMENTS)
 
 run:
-	cd $(APP_DIR) && sudo ../$(VENV_DIR)/bin/python $(APP)
+	rm -f $(APP_DIR)/challenge.db && cd $(APP_DIR) && sudo ../$(VENV_DIR)/bin/python $(APP)
 
 update:
 	$(VENV_DIR)/bin/pip list --outdated | cut -d '=' -f 1 | xargs -n1 $(VENV_DIR)/bin/pip install -U
