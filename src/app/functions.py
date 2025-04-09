@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json
+import yaml, os, subprocess, requests, datetime, json, sys
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -349,7 +349,7 @@ def do_grade(args):
     This method is the actual grading and token reading for all manual based questions
     The method gets called from the Jinja template rendering (inside { } in the graded.html file)
     '''
-    #logger.info(f"---------Calling {globals.manual_grading_script} with arguments: {args}")
+
     globals.fatal_error = False
     manual_grading_list = list()
     for ques,ans in args.items():
@@ -360,23 +360,23 @@ def do_grade(args):
             index = int(ques[-1])
             manual_grading_list.insert(index,{ques:ans})
 
-    grade_cmd = [f"{globals.custom_script_dir}/{globals.manual_grading_script}"]
-    grade_args = dict()
-    if len(manual_grading_list) != 0:
-        #for index, val in enumerate(manual_grading_list):
-        #    grade_args[str(index)] = val
+    script_path = os.path.join(globals.custom_script_dir, globals.manual_grading_script)
+    _, ext = os.path.splitext(script_path)
+    # Start building the command
+    if ext == ".py":
+        grade_cmd = [sys.executable, script_path]  # Use venv's Python
+    else:
+        grade_cmd = [script_path]  # Rely on shebang
+
+    # Add JSON-encoded arguments if present
+    grade_args = {}
+    if manual_grading_list:
         for entry in manual_grading_list:
             grade_args[list(entry.keys())[0]] = list(entry.values())[0]
         grade_cmd.append(json.dumps(grade_args))
 
-    #submissions_list = list()
-    #for sub in manual_grading_list:
-    #    cur_val = list(sub.values())[0]
-    #    submissions_list.append(cur_val)
-    #sub_string = ' '.join(submissions_list)
-
-
-    if globals.phases_enabled == True:
+    # Handle phase logic
+    if globals.phases_enabled:
         current_phase = get_current_phase()
         if current_phase != 'completed':
             grade_cmd.append(current_phase)

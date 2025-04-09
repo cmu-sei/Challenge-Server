@@ -45,7 +45,7 @@ def runSSHCommand(username=None, password=None, hostname=None, cmdList=None):
             results[f"cmd{index}"] = {
                 "commandExecute":cmd,
                 "stdout":"",
-                "stderr":f"Error occurred during command execution.\\error msg:\\t{str(e)}"
+                "stderr":f"Error occurred during command execution.\error msg:\t{str(e)}"
             }
     ssh.close()
     return results
@@ -54,28 +54,29 @@ def runSSHCommand(username=None, password=None, hostname=None, cmdList=None):
 # 'sub' variable represents submitted data that was passed from server to this script
 def phase1(sub=None):
     results = dict()
-    if sub['GradingCheck1'] == 'test1':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
+    if sub['GradingCheck1'] == 'test':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
         results['GradingCheck1'] = "Success"
     else:
         results['GradingCheck1'] = "Failure"
-    if sub['GradingCheck2'] == 'test2':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
-        results['GradingCheck2'] = "Success"
-    else:
-        results['GradingCheck2'] = "Failure"
-    if sub['GradingCheck2'] == 'test3':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
-        results['GradingCheck3'] = "Success"
-    else:
-        results['GradingCheck3'] = "Failure"
-    if sub['GradingCheck2'] == 'test4':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
-        results['GradingCheck4'] = "Success"
-    else:
-        results['GradingCheck4'] = "Failure"
+    results['GradingCheck2'] = "Success"
+    return results
+
+
+def phase2(sub=None):
+    results = dict()
+    results['GradingCheck3'] = "Failure"
+    return results
+
+
+def phase3(sub=None):
+    results = dict()
+    results['GradingCheck4'] = "Failure"
     return results
 
 
 if __name__ == '__main__':
     # phases variable should contain list of all phases implemented in the challenge & has a function declared above
-    phases = ['phase1']
+    phases = ['phase1','phase2','phase3']
     args = sys.argv[1:]
     if len(args) > 0:
         passed_phase = args[-1].strip().lower()
