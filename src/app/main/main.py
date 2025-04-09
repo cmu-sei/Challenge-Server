@@ -75,7 +75,7 @@ def grade():
             return redirect(url_for("main.tasks"))
 
         globals.manual_submit_time = now_string
-        logger.info(f"Submitting a grading task at {globals.manual_submit_time}")
+        logger.info(f"Submitting a grading task at {globals.manual_submit_time}. Request method is {request.method}")
         if request.method == "GET":
             # GET requests should call do_grade without any arguments
             globals.task = globals.executor.submit(do_grade)
@@ -84,6 +84,7 @@ def grade():
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
             #globals.task = globals.executor.submit(do_grade, *request.form.to_dict().values())
+            logger.info(f"Calling do_grade with data: {req_data}")
             globals.task = globals.executor.submit(do_grade, req_data)
 
         return render_template('grading.html', submit_time=globals.manual_submit_time)
@@ -112,8 +113,6 @@ def results():
 
 @main.route('/update',methods=['GET'])
 def updated_results():
-    if request.referrer != "https://challenge.us/challenge/results":
-        return jsonify({"NOTICE":"Unauthorized access attempted."})
 
     new_cron_results = copy.deepcopy(globals.cron_results) if globals.cron_results != None else dict()
     new_manual_results = copy.deepcopy(globals.manual_results) if globals.manual_results != None else dict()
@@ -143,7 +142,6 @@ def updated_results():
 
                 if ph == globals.current_phase:
                     break_loop = True
-                    #break
             except Exception as e:
                 break_loop = True
                 logger.info(f"Exception occurred during query of results (may be due to attempting to see results before grading). Exception: {str(e)}")

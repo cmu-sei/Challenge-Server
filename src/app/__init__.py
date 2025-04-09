@@ -31,7 +31,6 @@ def create_app(config_class=Config):
     from app.info.info import info as info_blueprint
     app.register_blueprint(info_blueprint,url_prefix='/info')
 
-    ## Below will initialize database object `db` if used.
     db.init_app(app)
     with app.app_context():
         db.create_all()

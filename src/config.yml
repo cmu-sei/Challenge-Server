@@ -56,10 +56,11 @@ info_and_services:
 #  service: update.service
 
 grading:
-  enabled: false
+  enabled: true
   grader_post: false
-  manual_grading: false
+  manual_grading: true
   manual_grading_script: manualGradingExample.py
+  # manual_grading_script: manualPhasedGradingExample.py # Use this example when doing phased-grading
   cron_grading: false
   cron_grading_script: null
   cron_interval: 5
@@ -67,34 +68,46 @@ grading:
   cron_delay: 10
   cron_limit: null
   rate_limit: 0
-  token_location: guestinfo
+  token_location: file
 
   submission:
     method: display
     grader_url: ""
     grader_key: ""
 
+# This is a non-phased example
   parts:
     GradingCheck1:
-      token_name: Q1
-      text: "q1"
+      token_name: example-token1
+      text: "Question 1"
       mode: text
     GradingCheck2:
-      token_name: Q2
-      text: "q2"
-      mode: button
+      token_name: example-token2
+      text: "Question 2"
+      mode: text
     GradingCheck3:
-      token_name: Q3
-      text: "q3"
-      mode: button
+      token_name: example-token3
+      text: "Question 3"
+      mode: text
     GradingCheck4:
-      token_name: Q4
-      text: "q4"
-      mode: button
+      token_name: example-token4
+      text: "Question 4"
+      mode: text
 
-  phases: true
-  phase_info:
-    phase1: ["GradingCheck1", "GradingCheck2"]
-    phase2: ["GradingCheck3"]
-    phase3: ["GradingCheck4"]
-    #mini_challenge: []
+  phases: false
+
+  # This is a phased example
+  # parts:
+  #   GradingCheck1:
+  #     token_name: example-token1
+  #     text: "Question 1"
+  #     mode: text
+  #   GradingCheck2:
+  #     token_name: example-token2
+  #     text: "Question 2"
+  #     mode: text
+
+  # phases: true
+  # phase_info:
+  #   phase1: ["GradingCheck1"]
+  #   phase2: ["GradingCheck2"]

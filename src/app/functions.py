@@ -33,77 +33,11 @@ def read_config(app):
 
     globals.challenge_name = conf['challenge_name']
 
-    # configure required services. Empty array if setting is not in config
-    globals.required_services = conf['required_services'] if 'required_services' in conf else []
-    globals.blocking_services = []
-    for service in globals.required_services:
-        # ensure host is defined in required services
-        if 'host' not in service:
-            logger.error(f"Missing host definition in required service: {service}")
-            exit(1)
-        # ensure type is defined in required services. If not defined, default to ping type.
-        if 'type' not in service:
-            logger.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
-            service['type'] = "ping"
-        # ensure defined type is valid
-        if service['type'] not in globals.VALID_SERVICE_TYPES:
-            logger.error(f"Invalid required service type in: {service}. Valid types are {globals.VALID_SERVICE_TYPES}.")
-            exit(1)
-        # ensure port is defined for socket type
-        if service['type'] == 'socket' and 'port' not in service:
-            logger.error(f"Missing port definition in required service: {service}. Port definition is required with socket type")
-            exit(1)
-        # ensure web options are set/defaulted
-        if service['type'] == 'web':
-            if 'port' not in service:
-                logger.info(f"Missing web port definition in required service: {service}. Defaulting to 80")
-                service['port'] = 80
-            if 'path' not in service:
-                logger.info(f"Missing web path definition in required service: {service}. Defaulting to /")
-                service['path'] = '/'
-        # ensure block startup scripts is defined. Default to False if not
-        if 'block_startup_scripts' not in service:
-            logger.info(f"Missing block startup script definition in service: {service}. Defaulting to False")
-            service['block_startup_scripts'] = False
-        if not isinstance(service['block_startup_scripts'], bool):
-            logger.error(f"Invalid type for block_startup_scripts. Must be true/false.")
-            exit(1)
-        # add to blocking services if needed
-        if service['block_startup_scripts']:
-            globals.blocking_services.append(service)
-
-    logger.info(f"Required services: {globals.required_services}")
-    logger.info(f"Blocking services: {globals.blocking_services}")
-    globals.blocking_threadpool = ThreadPoolExecutor(thread_name_prefix="BlockingServices")
-
-    # configure startup scripts. Empty array if setting is not in config
-    if 'startup' in conf:
-        globals.startup_scripts = conf['startup']['scripts'] if 'scripts' in conf['startup'] else []
-        logger.info(f"Startup scripts: {globals.startup_scripts}")
-        globals.startup_workspace = conf['startup']['runInWorkspace'] if 'runInWorkspace' in conf['startup'] else False
-        logger.info(f"Run Startup Scripts in Workspace: {globals.startup_workspace}")
-        # check to make sure each startup script is executable
-        for startup_script in globals.startup_scripts:
-            try:
-                if not os.path.exists(f"{globals.custom_script_dir}/{startup_script}"):
-                    logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} does not exist.")
-                    exit(1)
-                if not os.access(f"{globals.custom_script_dir}/{startup_script}", os.X_OK):
-                    logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} is not executable")
-                    exit(1)
-            except Exception as e:
-                logger.error(f"Got exception {e} while checking if startup script {globals.custom_script_dir}/{startup_script} exists and is executable.")
-                exit(1)
-
-    # set hosted files. False if not set in config file
-    globals.hosted_files_enabled = conf['hosted_files']['enabled'] if 'hosted_files' in conf and 'enabled' in conf['hosted_files'] else False
-    logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
-
     # set grading enabled. False if not set in config file
     globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
     logger.info(f"Grading enabled: {globals.grading_enabled}")
 
-    # only process grading configs if grading is enabled
+    ##########  Process Grading Config
     if globals.grading_enabled:
         # set grading parts. Error if not defined
         if 'parts' not in conf['grading']:
@@ -116,92 +50,6 @@ def read_config(app):
 
         globals.grading_parts = conf['grading']['parts']
         globals.grader_post = conf['grading']['grader_post']
-        if conf['grading']['manual_grading']:
-        # set manual grading script. Error if script is not defined or not executable
-            globals.grading_mode.append('manual')
-            if 'manual_grading_script' not in conf['grading'] :
-                logger.error(f"Manual Grading not script defined in config file.")
-                exit(1)
-            globals.manual_grading_script = conf['grading']['manual_grading_script']
-            logger.info(f"Manual Grading script: {globals.manual_grading_script}")
-            try:
-                if not os.access(f"{globals.custom_script_dir}/{globals.manual_grading_script}", os.X_OK):
-                    logger.error(f"Manual grading script {globals.manual_grading_script} missing or is not executable")
-                    exit(1)
-            except Exception as e:
-                logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
-                exit(1)
-
-        if conf['grading']['cron_grading']:
-        # set cron grading script. Error if script is not defined or not executable
-            globals.grading_mode.append('cron')
-            if 'cron_grading_script' not in conf['grading']:
-                logger.error(f"Cron Grading not script defined in config file.")
-                exit(1)
-            globals.cron_grading_script = conf['grading']['cron_grading_script']
-            logger.info(f"Manual Grading script: {globals.cron_grading_script}")
-            try:
-                if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
-                    logger.error(f"Manual grading script {globals.cron_grading_script} is not executable")
-                    exit(1)
-            except Exception as e:
-                logger.error(f"Got exception {e} while checking if grading script {globals.cron_grading_script} is executable.")
-                exit(1)
-
-            set_cron_vars(conf)
-
-        # set grading rate limit. 0 if not defined
-        globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
-        logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
-
-
-
-        # set token location. "guestinfo" is default. Error if not recognized.
-        globals.token_location = conf['grading']['token_location'] if 'token_location' in conf['grading'] else 'guestinfo'
-        if globals.token_location not in globals.VALID_TOKEN_LOCATIONS:
-            logger.error(f"Error parsing config file. Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
-            exit(1)
-        logger.info(f"Token location: {globals.token_location}")
-
-        # set grading submission method. "display" is default. Error if not recognized
-        globals.submission_method = conf['grading']['submission']['method'] if 'submission' in conf['grading'] and 'method' in conf['grading']['submission'] else 'display'
-        if globals.submission_method not in globals.VALID_SUBMISSION_METHODS:
-            logger.error(f"Error parsing config file. Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
-            exit(1)
-        logger.info(f"Submission method: {globals.submission_method}")
-
-        # additional configuration for grader_post
-        get_grader_url_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_url'", shell=True, capture_output=True)
-        if 'no value' in get_grader_url_cmd.stderr.decode('utf-8').lower() and 'grader_url' not in conf['grading']['submission']:
-            logger.error(f"grader_url is not defined in config file or guestinfo variables. grader_url is required when submission method if grader_post.")
-            exit(1)
-        else:
-            globals.grader_url = get_grader_url_cmd.stdout.decode('utf-8').strip().replace('http:', 'https:') if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_url']
-            logger.info(f"Grader URL: {globals.grader_url}")
-
-        # use guestinfo variable for grader_url or use the config file setting if there is no guestinfo variable
-        get_grader_key_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_key'", shell=True, capture_output=True)
-        if 'no value' in get_grader_key_cmd.stderr.decode('utf-8').lower() and 'grader_key' not in conf['grading']['submission']:
-            logger.error(f"grader_key is not defined in config file or guestinfo variables. grader_key is required when submission method if grader_post.")
-            exit(1)
-        else:
-            globals.grader_key = get_grader_key_cmd.stdout.decode('utf-8').strip() if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_key']
-            logger.info(f"Grader Key: {globals.grader_key}")
-
-        # Check for service logger config in yml & assign if enabled
-        services_list = conf['services_to_log'] if 'services_to_log' in conf else []
-        if services_list == []:
-            globals.services_list = services_list
-            logger.info("No services configured for logging.")
-            #sys.exit(1)
-        else:
-            for index,entry in enumerate(services_list):
-                if ('host' not in entry) or ('password' not in entry) or ('service' not in entry):
-                    logger.error("services_to_log missing data in yaml, please ensure all required parts are entered. (host, password, or service data).Exiting.")
-                    exit(1)
-                if ('user' not in entry) or (entry['user'] == None):
-                    services_list[index]['user'] = 'user'
-            globals.services_list = services_list
 
         # Initialize phases & add to DB
         with app.app_context():
@@ -257,6 +105,157 @@ def read_config(app):
                     logger.error(', '.join(globals.question_order))
                     logger.error(f"Exception occurred: Unable to add question {key} to DB. Exception:{e}.\nExiting.")
                     exit(1)
+
+        if conf['grading']['manual_grading']:
+        # set manual grading script. Error if script is not defined or not executable
+            globals.grading_mode.append('manual')
+            if 'manual_grading_script' not in conf['grading'] :
+                logger.error(f"Manual Grading not script defined in config file.")
+                exit(1)
+            globals.manual_grading_script = conf['grading']['manual_grading_script']
+            logger.info(f"Manual Grading script: {globals.manual_grading_script}")
+            try:
+                if not os.access(f"{globals.custom_script_dir}/{globals.manual_grading_script}", os.X_OK):
+                    logger.error(f"Manual grading script {globals.manual_grading_script} missing or is not executable")
+                    exit(1)
+            except Exception as e:
+                logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
+                exit(1)
+
+        if conf['grading']['cron_grading']:
+        # set cron grading script. Error if script is not defined or not executable
+            globals.grading_mode.append('cron')
+            if 'cron_grading_script' not in conf['grading']:
+                logger.error(f"Cron Grading not script defined in config file.")
+                exit(1)
+            globals.cron_grading_script = conf['grading']['cron_grading_script']
+            logger.info(f"Manual Grading script: {globals.cron_grading_script}")
+            try:
+                if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
+                    logger.error(f"Manual grading script {globals.cron_grading_script} is not executable")
+                    exit(1)
+            except Exception as e:
+                logger.error(f"Got exception {e} while checking if grading script {globals.cron_grading_script} is executable.")
+                exit(1)
+
+            set_cron_vars(conf)
+
+        # set grading rate limit. 0 if not defined
+        globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
+        logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
+
+        # set token location. "guestinfo" is default. Error if not recognized.
+        globals.token_location = conf['grading']['token_location'] if 'token_location' in conf['grading'] else 'guestinfo'
+        if globals.token_location not in globals.VALID_TOKEN_LOCATIONS:
+            logger.error(f"Error parsing config file. Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
+            exit(1)
+        logger.info(f"Token location: {globals.token_location}")
+
+        # set grading submission method. "display" is default. Error if not recognized
+        globals.submission_method = conf['grading']['submission']['method'] if 'submission' in conf['grading'] and 'method' in conf['grading']['submission'] else 'display'
+        if globals.submission_method not in globals.VALID_SUBMISSION_METHODS:
+            logger.error(f"Error parsing config file. Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
+            exit(1)
+        logger.info(f"Submission method: {globals.submission_method}")
+
+        # additional configuration for grader_post
+        get_grader_url_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_url'", shell=True, capture_output=True)
+        if 'no value' in get_grader_url_cmd.stderr.decode('utf-8').lower() and 'grader_url' not in conf['grading']['submission']:
+            logger.error(f"grader_url is not defined in config file or guestinfo variables. grader_url is required when submission method if grader_post.")
+            exit(1)
+        else:
+            globals.grader_url = get_grader_url_cmd.stdout.decode('utf-8').strip().replace('http:', 'https:') if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_url']
+            logger.info(f"Grader URL: {globals.grader_url}")
+
+        # use guestinfo variable for grader_url or use the config file setting if there is no guestinfo variable
+        get_grader_key_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_key'", shell=True, capture_output=True)
+        if 'no value' in get_grader_key_cmd.stderr.decode('utf-8').lower() and 'grader_key' not in conf['grading']['submission']:
+            logger.error(f"grader_key is not defined in config file or guestinfo variables. grader_key is required when submission method if grader_post.")
+            exit(1)
+        else:
+            globals.grader_key = get_grader_key_cmd.stdout.decode('utf-8').strip() if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_key']
+            logger.info(f"Grader Key: {globals.grader_key}")
+
+    # configure required services. Empty array if setting is not in config
+    globals.required_services = conf['required_services'] if 'required_services' in conf else []
+    globals.blocking_services = []
+    for service in globals.required_services:
+        # ensure host is defined in required services
+        if 'host' not in service:
+            logger.error(f"Missing host definition in required service: {service}")
+            exit(1)
+        # ensure type is defined in required services. If not defined, default to ping type.
+        if 'type' not in service:
+            logger.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
+            service['type'] = "ping"
+        # ensure defined type is valid
+        if service['type'] not in globals.VALID_SERVICE_TYPES:
+            logger.error(f"Invalid required service type in: {service}. Valid types are {globals.VALID_SERVICE_TYPES}.")
+            exit(1)
+        # ensure port is defined for socket type
+        if service['type'] == 'socket' and 'port' not in service:
+            logger.error(f"Missing port definition in required service: {service}. Port definition is required with socket type")
+            exit(1)
+        # ensure web options are set/defaulted
+        if service['type'] == 'web':
+            if 'port' not in service:
+                logger.info(f"Missing web port definition in required service: {service}. Defaulting to 80")
+                service['port'] = 80
+            if 'path' not in service:
+                logger.info(f"Missing web path definition in required service: {service}. Defaulting to /")
+                service['path'] = '/'
+        # ensure block startup scripts is defined. Default to False if not
+        if 'block_startup_scripts' not in service:
+            logger.info(f"Missing block startup script definition in service: {service}. Defaulting to False")
+            service['block_startup_scripts'] = False
+        if not isinstance(service['block_startup_scripts'], bool):
+            logger.error(f"Invalid type for block_startup_scripts. Must be true/false.")
+            exit(1)
+        # add to blocking services if needed
+        if service['block_startup_scripts']:
+            globals.blocking_services.append(service)
+
+    logger.info(f"Required services: {globals.required_services}")
+    logger.info(f"Blocking services: {globals.blocking_services}")
+    globals.blocking_threadpool = ThreadPoolExecutor(thread_name_prefix="BlockingServices")
+
+    # Check for service logger config in yml & assign if enabled
+    services_list = conf['services_to_log'] if 'services_to_log' in conf else []
+    if services_list == []:
+        globals.services_list = services_list
+        logger.info("No services configured for logging.")
+    else:
+        for index,entry in enumerate(services_list):
+            if ('host' not in entry) or ('password' not in entry) or ('service' not in entry):
+                logger.error("services_to_log missing data in yaml, please ensure all required parts are entered. (host, password, or service data).Exiting.")
+                exit(1)
+            if ('user' not in entry) or (entry['user'] == None):
+                services_list[index]['user'] = 'user'
+        globals.services_list = services_list
+
+    # configure startup scripts. Empty array if setting is not in config
+    if 'startup' in conf:
+        globals.startup_scripts = conf['startup']['scripts'] if 'scripts' in conf['startup'] else []
+        logger.info(f"Startup scripts: {globals.startup_scripts}")
+        globals.startup_workspace = conf['startup']['runInWorkspace'] if 'runInWorkspace' in conf['startup'] else False
+        logger.info(f"Run Startup Scripts in Workspace: {globals.startup_workspace}")
+        # check to make sure each startup script is executable
+        for startup_script in globals.startup_scripts:
+            try:
+                if not os.path.exists(f"{globals.custom_script_dir}/{startup_script}"):
+                    logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} does not exist.")
+                    exit(1)
+                if not os.access(f"{globals.custom_script_dir}/{startup_script}", os.X_OK):
+                    logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} is not executable")
+                    exit(1)
+            except Exception as e:
+                logger.error(f"Got exception {e} while checking if startup script {globals.custom_script_dir}/{startup_script} exists and is executable.")
+                exit(1)
+
+    # set hosted files. False if not set in config file
+    globals.hosted_files_enabled = conf['hosted_files']['enabled'] if 'hosted_files' in conf and 'enabled' in conf['hosted_files'] else False
+    logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
+
     # check status of `info` pages
     if conf['info_and_services']['info_home_enabled']:
         globals.info_home_enabled = True
@@ -280,13 +279,15 @@ def check_questions():
             db.session.commit()
 
 
-
 def get_current_phase():
     with current_app.app_context():
+        if not PhaseTracking.query.filter_by().all():
+            logger.info(f"PhaseTracking table is empty.")
+            raise KeyError
         for phase in globals.phase_order:
             cur_phase = PhaseTracking.query.filter_by(label=phase).first()
             if cur_phase == None:
-                logger.error(f"Error occurred during grading. Queried PhaseTracking with phase key that does not exit. key: {phase}. Exiting.")
+                logger.error(f"Queried for phase key that does not exist. key: {phase}.")
                 raise KeyError
             if cur_phase.solved == False:
                 globals.current_phase = cur_phase.label
@@ -295,13 +296,14 @@ def get_current_phase():
         globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         return "completed"
 
+
 def update_db(type_q,label=None, val=None):
     with current_app.app_context():
         if type_q == 'q':
             try:
                 cur_question = QuestionTracking.query.filter_by(label=label).first()
                 if cur_question == None:
-                    logger.error("No entry found in DB while attempting to mark question completed. Exiting")
+                    logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     exit(1)
                 if (val != None) and ('--' in val):
                     cur_question.response = val.split('--',1)[1]
@@ -314,7 +316,6 @@ def update_db(type_q,label=None, val=None):
             except Exception as e:
                 logger.error(f"Exception occurred while update DB with completed question. Exception: {e}. Exiting.")
                 exit(1)
-            logger.info(f"Question {cur_question.label} marked completed in DB.")
 
         else:
             for p in globals.phase_order:
@@ -354,7 +355,7 @@ def do_grade(args):
     manual_grading_list = list()
     for ques,ans in args.items():
         if (ques not in globals.grading_parts.keys()) or (globals.grading_parts[ques]['mode'] not in globals.VALID_CONFIG_MODES):
-            logger.info(f"The key {ques} is not a valid grading aspect or valid part of question configuration. Skipping")
+            logger.debug(f"The key {ques} is not a a grading key/mode. Skipping")
             continue
         if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] != "button"):
             index = int(ques[-1])
@@ -436,7 +437,7 @@ def check_db(label):
     with current_app.app_context():
         cur_question = QuestionTracking.query.filter_by(label=label).first()
         if cur_question == None:
-            logger.error("No entry found in DB while attempting to mark question completed. Exiting")
+            logger.error("Check Database: No entry found in DB while attempting to mark question completed. Exiting")
             exit(1)
         return cur_question.solved
 
@@ -460,8 +461,6 @@ def get_results(results):
             tokens[key] = "You did not earn a token for this part"
     if globals.phases_enabled == True:
         update_db('p')
-    logger.info(f"Grading Results: {end_results}")
-    logger.info(f"Grading tokens: {tokens}")
     return end_results, tokens
 
 
