@@ -13,7 +13,7 @@ REQUIREMENTS := requirements.txt
 APP_DIR := ./src
 APP := app.py
 
-.PHONY: all venv run clean update freeze
+.PHONY: all venv run update freeze clean
 
 all: venv run
 
