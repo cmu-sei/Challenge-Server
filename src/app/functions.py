@@ -712,7 +712,7 @@ def read_token(part_name):
     # read token from file if guestinfo is not the setting
     else:
         try:
-            with open(value, 'r') as f:
+            with open(f"{globals.basedir}/app/tokens/{value}", 'r') as f:
                 return f.readline()
         except:
             logger.error(f"Error opening file {value} when trying to read token for check {part_name}")
