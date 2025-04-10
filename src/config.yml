@@ -79,19 +79,19 @@ grading:
   parts:
     GradingCheck1:
       token_name: example-token1
-      text: "Question 1"
+      text: "Question 1: Enter 'test1' to pass"
       mode: text
     GradingCheck2:
       token_name: example-token2
-      text: "Question 2"
+      text: "Question 2: Enter 'test2' to pass"
       mode: text
     GradingCheck3:
       token_name: example-token3
-      text: "Question 3"
+      text: "Question 3: Enter 'test3' to pass"
       mode: text
     GradingCheck4:
       token_name: example-token4
-      text: "Question 4"
+      text: "Question 4: Enter 'test4' to pass"
       mode: text
 
   phases: false
@@ -100,11 +100,11 @@ grading:
   # parts:
   #   GradingCheck1:
   #     token_name: example-token1
-  #     text: "Question 1"
+  #     text: "Question 1: Enter 'test1' to pass"
   #     mode: text
   #   GradingCheck2:
   #     token_name: example-token2
-  #     text: "Question 2"
+  #     text: "Question 2: Enter 'test2' to pass"
   #     mode: text
 
   # phases: true

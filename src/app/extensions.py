@@ -15,7 +15,7 @@ from app.globals import Globals
 
 
 #######
-## This file contains all of the persistent objects to be used throughout the sites execution
+## This file contains all of the persistent objects shared by components
 #######
 
 # Create database object, currently unused

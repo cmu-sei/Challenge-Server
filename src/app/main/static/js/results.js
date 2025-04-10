@@ -27,7 +27,7 @@
                     err1.id ='err'
                     err1.textContent = 'There was an error grading your challenge';
                     var err2 = document.createElement('p');
-                    err2.textContent = 'The error grading your challenge has been logged. You can attempt grading again. If the error does not resolve, please contact support.';
+                    err2.textContent = 'The grading error has been logged. If the error is not resolved by re-grading, please contact support.';
                     err1.appendChild(err2);
                     data.appendChild(err1);
 
@@ -40,12 +40,12 @@
                     if (data.children[0] === undefined) {
                         var child1 = document.createElement('p');
                         child1.id = 'no-grade'
-                        child1.textContent = 'No grading has occurred yet. Grades will show once grade is ran at least once.';
+                        child1.textContent = 'No grades yet. Grades will show after grading occurs.';
                         data.appendChild(child1);
                     }
                     else if (!data.children[0].textContent.includes('No grading')){
                         var child1 = document.createElement('p');
-                        child1.textContent = 'No grading has occurred yet. Grades will show once grade is ran at least once.';
+                        child1.textContent = 'No grades yet. Grades will show after grading occurs.';
                         data.appendChild(child1);
                     }
                 }
@@ -96,7 +96,6 @@
                                 let numB = parseInt(b.match(/\d+/));
                                 return numA - numB;
                             });
-                            //for (let [key,value] of Object.entries(res.manual_results)) {
                             for (let mk of manual_keys) {
                                 var tr = document.createElement('tr');
                                 tr.className = 'bodypost';
@@ -110,7 +109,6 @@
                                 var l2 = document.createElement('label')
                                 var l3 = document.createElement('label')
                                 l1.textContent = res.grading_parts[mk]['text'];
-                                //l2.textContent = value;
                                 l2.textContent = res.manual_results[mk];
                                 l3.textContent = res.tokens['manual'][mk];
                                 td1.appendChild(l1);
@@ -134,7 +132,7 @@
                             var th = document.createElement('th');
                             th.colSpan = "3";
                             th.className = 'resspan';
-                            th.textContent = "Manual grading has not been ran yet.";
+                            th.textContent = "No manual grades yet.";
                             tr3.appendChild(th);
                             table.appendChild(tr3);
                         }
@@ -151,7 +149,6 @@
                                 let numB = parseInt(b.match(/\d+/));
                                 return numA - numB;
                             });
-                            //for (let [key1,value1] of Object.entries(res.cron_results)) {
                             for (let ck of cron_keys) {
                                 var tr4 = document.createElement('tr');
                                 tr4.className = 'bodypost';
@@ -179,7 +176,7 @@
                             var th = document.createElement('th');
                             th.colSpan = "3";
                             th.className = 'resspan';
-                            th.textContent = "Auto-grading last occurated at: " + res.cron_submit_time;
+                            th.textContent = "Auto-grading last triggered at: " + res.cron_submit_time;
                             tr5.appendChild(th);
                             table.appendChild(tr5);
                         }
@@ -189,7 +186,7 @@
                             var th = document.createElement('th');
                             th.colSpan = "3";
                             th.className = 'resspan';
-                            th.textContent = "Cron grading has not been ran yet.";
+                            th.textContent = "No cron grades yet.";
                             tr6.appendChild(th);
                             table.appendChild(tr6);
                         }
@@ -204,7 +201,6 @@
                     btn.textContent = "Re-Grade Tasks";
                     link.appendChild(btn);
                     regrade.appendChild(link)
-                    /*child2.appendChild(child3);*/
                     child2.appendChild(table);
                     child2.appendChild(regrade);
                     child1.appendChild(child2);

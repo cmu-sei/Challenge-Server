@@ -15,7 +15,7 @@ from app.extensions import logger, globals,db
 from app.functions import do_grade, check_questions,read_token
 from app.models import QuestionTracking
 
-main = Blueprint("main",__name__, template_folder=f'templates', static_folder=f'static')     # add path to templates/static if error
+main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
 
 @main.before_request
 def pass_globals():
@@ -83,22 +83,16 @@ def grade():
             req_data = request.form.to_dict()
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
-            #globals.task = globals.executor.submit(do_grade, *request.form.to_dict().values())
             logger.info(f"Calling do_grade with data: {req_data}")
             globals.task = globals.executor.submit(do_grade, req_data)
 
         return render_template('grading.html', submit_time=globals.manual_submit_time)
 
     # if the current grading task is done, collect and display the results
-    # the task is then nulled out
     if globals.task.done():
-        # globals.results, globals.tokens = task.result()
         globals.task = None
-        #if globals.submission_method == 'display':
         logger.info(f"Rendering graded results html page for user. Fatal error is {globals.fatal_error}")
         return redirect(url_for('main.results'))
-        #else:
-        #    return render_template("auto_submit.html", submit_time=globals.manual_submit_time)
 
     # if the current grading task is still running, show the grading page with the last submit time
     if globals.task.running():
@@ -119,11 +113,11 @@ def updated_results():
 
     break_loop = False
     if globals.phases_enabled:
-        ## Below loops intend to grab previous phases if completed & print that they are completed
-        for ph in globals.phase_order:
+        ## Grab previous phases if completed & print that they are completed
+        for phase in globals.phase_order:
             try:
-                for q in globals.phases[ph]:
-                    que_chk = QuestionTracking.query.filter_by(label=q).first()
+                for question in globals.phases[phase]:
+                    que_chk = QuestionTracking.query.filter_by(label=question).first()
 
                     if que_chk.q_type == 'cron':
                         if que_chk.solved == True:
@@ -140,11 +134,11 @@ def updated_results():
                             new_manual_results[que_chk.label] = "Failure" if que_chk.response == "N/A" else (f"Failure -- {que_chk.response}" if que_chk.response != "" else "Failure -- Has not been graded yet.")
                         continue
 
-                if ph == globals.current_phase:
+                if phase == globals.current_phase:
                     break_loop = True
             except Exception as e:
                 break_loop = True
-                logger.info(f"Exception occurred during query of results (may be due to attempting to see results before grading). Exception: {str(e)}")
+                logger.info(f"Exception while querying grading results (may be due to attempting to see results before grading). Exception: {str(e)}")
             if break_loop:
                 break
         if "01/01/1900" in globals.manual_submit_time:
@@ -188,17 +182,14 @@ def list_files(folder):
         dirs = {}
         # Directly join the folder path with the base directory
         tmpDir = os.path.join(globals.hosted_file_directory, folder)
-        #logger.info(f"-----tmp---{tmpDir}---")
         for filename in os.listdir(tmpDir):
             path = os.path.join(tmpDir,filename)
             if os.path.isdir(path):
-                #logger.info(f"--------{path}---{folder}---{filename}")
                 dirs[filename] = os.path.join(folder,filename)
             elif os.path.isfile(path):
                 files[filename] = os.path.join(folder,filename)
         return render_template('files.html', files=files, folders=dirs)
     return render_template('files.html')
-
 
 
 @main.route("/download/<path:path>")
@@ -216,19 +207,6 @@ def get_file(path):
             logger.info(f"User is downloading file {filePath}")
             return send_from_directory(globals.hosted_file_directory,path,as_attachment=True)
         else:
-            flash("That file does not exist.")
+            flash(f"{filePath} does not exist.")
             return redirect(url_for('main.list_files'))
     return render_template('files.html')
-
-
-
-
-"""
-Endpoint to list files on the server.
-    if globals.hosted_files_enabled:
-        if not globals.server_ready:
-            logger.info("Tried to view files before server was marked as ready.")
-            return redirect(url_for("info.main"))
-        return render_template('files.html', files=get_file_list())
-    return render_template('files.html')
-"""

@@ -17,41 +17,41 @@ DM24-0645
 {% block content %}
 
 {% if services == None %}
-    <span id="title" style="padding-top:20px;padding-bottom: 20px;">
-        No services configured
-    </span>
+<span id="title" style="padding-top:20px;padding-bottom: 20px;">
+    No services configured
+</span>
 {% else %}
-    <span id="title" style="padding-top:20px;padding-bottom: 20px;">
-        Services
-    </span>
+<span id="title" style="padding-top:20px;padding-bottom: 20px;">
+    Services
+</span>
 
-    {% if services > 0 %}
-        {% if num_status == 0 %}
-            <h2>Services have not had their first check. Please refresh shortly to view status.</h2>
-        {% else %}
-            <form>
-            <fieldset style="width:70%;">
-                <!--<legend align='center'>Challenge Questions</legend>-->
-                <table class="res-table">
-                    <thead class="res-thead" >
-                        <th class="service1"><label>Host</label></th>
-                        <th class="service2"><label>Service</label></th>
-                        <th class="service2"><label>Status</label></th>
-                    </thead>
-                        {% for key, value in status.items() %}
-                            <tr class="bodypost">
-                                <td class="service1"><label>{{ value[0] }}</label></td>
-                                <td class="service2"><label>{{ key }}</label></td>
-                                <td class="service2"><label>{{ value[1] }}</label></td>
-                            </tr>
-                        {% endfor %}
-                </table>
-            </fieldset>
-            </form>
-        {% endif %}
-    {% else %}
-        <h2>No services configured for checking</h2>
-    {% endif %}
+{% if services > 0 %}
+{% if num_status == 0 %}
+<h2>Services have not been checked yet. Please refresh shortly to view status.</h2>
+{% else %}
+<form>
+    <fieldset style="width:70%;">
+        <!--<legend align='center'>Challenge Questions</legend>-->
+        <table class="res-table">
+            <thead class="res-thead">
+                <th class="service1"><label>Host</label></th>
+                <th class="service2"><label>Service</label></th>
+                <th class="service2"><label>Status</label></th>
+            </thead>
+            {% for key, value in status.items() %}
+            <tr class="bodypost">
+                <td class="service1"><label>{{ value[0] }}</label></td>
+                <td class="service2"><label>{{ key }}</label></td>
+                <td class="service2"><label>{{ value[1] }}</label></td>
+            </tr>
+            {% endfor %}
+        </table>
+    </fieldset>
+</form>
+{% endif %}
+{% else %}
+<h2>No services configured for checking</h2>
+{% endif %}
 {% endif %}
 
 {% endblock %}

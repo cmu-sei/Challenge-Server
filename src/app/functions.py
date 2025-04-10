@@ -53,7 +53,7 @@ def read_config(app):
 
         # Initialize phases & add to DB
         with app.app_context():
-            if conf['grading']['phases'] == True:
+            if conf['grading']['phases']:
                 globals.phases_enabled = True
                 if ('phase_info' not in conf['grading'] or (len(conf['grading']['phase_info']) == 0)):
                     logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
@@ -75,7 +75,7 @@ def read_config(app):
                         p_restart = True
                 except Exception as e:
                     ...
-                if p_restart == False:
+                if not p_restart:
                     try:
 
                         for ind,phase in enumerate(globals.phase_order):
@@ -83,10 +83,10 @@ def read_config(app):
                             db.session.add(new_phase)
                             db.session.commit()
                     except Exception as e:
-                        logger.error(f"Exception occurred: Unable to add phase {phase} to DB. Exception:{e}.\nExiting.")
+                        logger.error(f"Unable to add phase {phase} to DB. Exception:{e}.\nExiting.")
                         exit(1)
 
-            ## Here we will add all questions to DB for tracking
+            ## Add questions to DB for tracking
             globals.question_order = sorted(list(globals.grading_parts.keys()),key=str.casefold)
             q_restart = False
             try:
@@ -95,7 +95,7 @@ def read_config(app):
                     q_restart = True
             except Exception as e:
                 print(e)
-            if q_restart == False:
+            if not q_restart:
                 try:
                     for index,key in enumerate(globals.question_order,start=1):
                         new_question = QuestionTracking(id=index,label=key,task=globals.grading_parts[key]['text'],response="",q_type=globals.grading_parts[key]['mode'],solved=False,time_solved="---")
@@ -103,7 +103,7 @@ def read_config(app):
                         db.session.commit()
                 except Exception as e:
                     logger.error(', '.join(globals.question_order))
-                    logger.error(f"Exception occurred: Unable to add question {key} to DB. Exception:{e}.\nExiting.")
+                    logger.error(f"Unable to add question {key} to DB. Exception:{e}.\nExiting.")
                     exit(1)
 
         if conf['grading']['manual_grading']:
@@ -126,13 +126,13 @@ def read_config(app):
         # set cron grading script. Error if script is not defined or not executable
             globals.grading_mode.append('cron')
             if 'cron_grading_script' not in conf['grading']:
-                logger.error(f"Cron Grading not script defined in config file.")
+                logger.error(f"Cron grading not script defined in config file.")
                 exit(1)
             globals.cron_grading_script = conf['grading']['cron_grading_script']
-            logger.info(f"Manual Grading script: {globals.cron_grading_script}")
+            logger.info(f"Cron grading script: {globals.cron_grading_script}")
             try:
                 if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
-                    logger.error(f"Manual grading script {globals.cron_grading_script} is not executable")
+                    logger.error(f"Cron grading script {globals.cron_grading_script} is not executable")
                     exit(1)
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if grading script {globals.cron_grading_script} is executable.")
@@ -221,7 +221,7 @@ def read_config(app):
 
     # Check for service logger config in yml & assign if enabled
     services_list = conf['services_to_log'] if 'services_to_log' in conf else []
-    if services_list == []:
+    if not services_list:
         globals.services_list = services_list
         logger.info("No services configured for logging.")
     else:
@@ -314,7 +314,7 @@ def update_db(type_q,label=None, val=None):
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 db.session.commit()
             except Exception as e:
-                logger.error(f"Exception occurred while update DB with completed question. Exception: {e}. Exiting.")
+                logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")
                 exit(1)
 
         else:
@@ -343,11 +343,11 @@ def update_db(type_q,label=None, val=None):
 
 
 #######
-# functions to be used during grading process
+# Grading Functions
 #######
 def do_grade(args):
     '''
-    This method is the actual grading and token reading for all manual based questions
+    This method is the grading and token reading for all manual questions
     The method gets called from the Jinja template rendering (inside { } in the graded.html file)
     '''
 
@@ -365,9 +365,9 @@ def do_grade(args):
     _, ext = os.path.splitext(script_path)
     # Start building the command
     if ext == ".py":
-        grade_cmd = [sys.executable, script_path]  # Use venv's Python
+        grade_cmd = [sys.executable, script_path]  # Use venv's Python if python script
     else:
-        grade_cmd = [script_path]  # Rely on shebang
+        grade_cmd = [script_path]
 
     # Add JSON-encoded arguments if present
     grade_args = {}
@@ -388,7 +388,7 @@ def do_grade(args):
 
     try:
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
-        logger.info(f"Grading process finished: {out}")
+        logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')
         if (output == "") or (output == None):
             logger.error("Grading script finished without returning any output.")
@@ -421,7 +421,6 @@ def do_grade(args):
     for grading_key in globals.grading_parts.keys():
         if globals.grading_parts[grading_key]['mode'] not in globals.MANUAL_MODE:
             continue
-        ## IMPORTANT -- Below should only occur if phases are not configured. I believe below code provides grade for ungraded questions, where we dont want that if phase has not been reached
         if not globals.phases_enabled:
             if grading_key not in results:
                 logger.info(f"Grading script, {globals.manual_grading_script}, did not yield a result for grading part {grading_key}. Assigning value of 'Failed'")
@@ -453,7 +452,6 @@ def get_results(results):
             del end_results[key]
         if "success" in value.lower():
             tokens[key] = read_token(key)
-            #update_db('q', key)
         elif check_db(key):             ### check DB to see if failed question was passed previously & update results accordingly
             results[key] = "Success"
             tokens[key] = read_token(key)
@@ -467,7 +465,7 @@ def get_results(results):
 def done_grading(future: Future):
     '''
     Callback function for do_grade.
-    It is meant to check to see if the results need to be PUT to the grading server
+    Checks to see if the results need to be PUT to the grading server
     '''
     results, tokens = future.result()
     logger.info(f"Server sees {globals.manual_grading_script} results as: {results}")
@@ -542,11 +540,11 @@ def post_submission(tokens: dict):
 
 
 #######
-# functions specifically used for cron grading
+# Cron grading
 #######
 def set_cron_vars(conf):
     '''
-    This is going to set the value of the cron global vars
+    Set the value of the cron global vars
     First try to see if there are any test guestinfo variables set
     If there are test guestinfo variables set, then use those
     If there are no test guestinfo variables set, then use the config file or defaults
@@ -571,7 +569,6 @@ def set_cron_vars(conf):
     else:
         globals.cron_delay = int(cron_delay_cmd.stdout.decode('utf-8'))
         logger.info(f"Using a guestinfo var intended for testing: cron_delay = {globals.cron_delay}")
-
 
     cron_at_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.test_cron_at'", shell=True, capture_output=True)
     if 'no value' in cron_at_cmd.stderr.decode('utf-8').lower():
@@ -599,15 +596,14 @@ def set_cron_vars(conf):
 
 def do_cron_grade():
     '''
-    This method is the actual grading and token reading for all manual based questions
+    Grading and token reading for cron
     The method gets called from the Jinja template rendering (inside { } in the graded.html file)
     '''
-    #logger.info(f"---------Calling {globals.manual_grading_script} with arguments: {args}")
     globals.fatal_error = False
 
     try:
         out = subprocess.run([f"{globals.custom_script_dir}/{globals.cron_grading_script}"], capture_output=True, check=True)
-        logger.info(f"Grading process finished: {out}")
+        logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')
 
     # Something happened if there was a non-zero exit status. Log this and set fatal_error
@@ -650,8 +646,7 @@ def do_cron_grade():
 
 def run_cron_thread():
     '''
-    This method is meant to be run inside  a thread.
-    The method will run do_grade on a timer (similar to a cron job)
+    Run do_grade on a timer via a thread (similar to a cron job)
     '''
     limit = globals.cron_limit
     logger.info(f"Starting cron thread with interval {globals.cron_interval}. Grading is limited to running {limit} times.")
@@ -673,16 +668,13 @@ def run_cron_thread():
 
 
 #######
-# function to be used for handling tokens
+# Token functions
 #######
 def read_token(part_name):
     '''
-    Function below reads tokens from files.
-    Assumes files are in the standard Kali Iso location and that tokens are only 1 line long
-
     This method takes a Check name as an argument. Examples can be "Check1", "Check2", etc.
-    These names come from your GradingScript (The keys in the json blob)
     '''
+
     # get the token name for this part
     try:
         value = globals.grading_parts[part_name]['token_name']
@@ -719,24 +711,14 @@ def read_token(part_name):
                 globals.fatal_error = True
             return "Unexpected error encountered. Contact an administrator."
 
-#def get_file_list():
-#    files = {}
-#    for filename in os.listdir(globals.hosted_file_directory):
-#        path = os.path.join(globals.hosted_file_directory, filename)
-#        if os.path.isfile(path) and filename[0] != '.':
-#            files[filename] = path
-#    return files
-
 
 def get_logs(service):
     log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    #host_info = {"host":service['host'],"service":service['service']}
     while True:
         sleep(10)
-        # `er` variable is intended to track if a service is 'fve' and then when same logs are grabbed they are logged with `.error` rather than `.info` to make for easier tracking.
-        er = False
-        ## below SSH cmd uses `is-active` option with `systemctl` where the response should be either `actor `inactive` and then Log info accordingly.
+        error = ''
         try:
+            ## `systemctl is-active` to get/log service info
             get_status_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'systemctl is-active {service['service']}'"
             status_response = subprocess.run(get_status_cmd, shell=True,capture_output=True, timeout=10)
         except subprocess.TimeoutExpired:
@@ -744,22 +726,20 @@ def get_logs(service):
             globals.services_status[service['service']] = [service['host'],f"request to host timed out. Trying again shortly"]
             continue
         except Exception as e:
-            logger.error(f"SERVICE_LOGGER: Exception has occurred when attempting to retrieve service status.")
-            logger.error(f"SERVICE_LOGGER: Exception: {e}")
-            globals.services_status[service['service']] = [service['host'],f"Exception has occurred when attempting to retrieve service status."]
+            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve service status: {e}")
+            globals.services_status[service['service']] = [service['host'],f"Exception attempting to retrieve service status."]
             continue
         if status_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERVICE_LOGGER: Error has occurred when attempting to get service status.")
-            logger.error(f"SERVICE_LOGGER: Error: {status_response.stderr.decode('utf-8')}")
+            logger.error(f"SERVICE_LOGGER: Failed to get service status. Error: {status_response.stderr.decode('utf-8')}")
             globals.services_status[service['service']] = [service['host'],f"Error has occurred when attempting to get service status."]
             continue
         if status_response.stdout.decode('utf-8').strip('\n') == 'failed':
-            er = "SERVICE FAILED: "
-            logger.error(f"SERVICE_LOGGER: {er} {service['service']} is in failed state.")
+            error = "SERVICE FAILED: "
+            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
             globals.services_status[service['service']] = [service['host'],f"Service is in failed state."]
         elif status_response.stdout.decode('utf-8').strip('\n') == 'inactive':
-            er = "SERVICE INACTIVE: "
-            logger.error(f"SERVICE_LOGGER: {er} {service['service']} is in inactive state.")
+            error = "SERVICE INACTIVE: "
+            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
             globals.services_status[service['service']] = [service['host'],f"Service is in inactive state."]
         else:
             globals.services_status[service['service']] = [service['host'],f"Service is in active state."]
@@ -769,29 +749,27 @@ def get_logs(service):
             log_response = subprocess.run(get_log_cmd, shell=True,capture_output=True,timeout=10)
             cur_logs = log_response.stdout.decode('utf-8')
         except subprocess.TimeoutExpired:
-            logger.error(f"SERVICE_LOGGER: SSH connection to host timed out.")
+            logger.error(f"SERVICE_LOGGER: SSH connection to {service['user']}@{service['host']} timed out.")
             continue
         except Exception as e:
-            logger.error(f"SERVICE_LOGGER: Exception has occurred when attempting to retrieve logs.")
-            logger.error(f"SERVICE_LOGGER: Exception: {e}")
+            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve logs: {e}")
             continue
         if log_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERVICE_LOGGER: Error has occurred when attempting to collect logs.")
-            logger.error(f"SERVICE_LOGGER: Error: {log_response.stderr.decode('utf-8')}")
+            logger.error(f"SERVICE_LOGGER: Failed to collect logs. Error: {log_response.stderr.decode('utf-8')}")
             continue
         if "No entries" in cur_logs:
-            if er != False:
-                logger.error(f"SERVICE_LOGGER: {er} No new logs fe.")
+            if error:
+                logger.error(f"SERVICE_LOGGER: {error} No new logs fe.")
             else:
                 logger.info(f"SERVICE_LOGGER: No new logs found at this time.")
             continue
         output = cur_logs.split("\n")
         output.remove("")
         for line in output:
-            if er == False:
+            if error == False:
                 logger.info(f"SERVICE_LOGGER: {line}")
             else:
-                logger.error("SERVICE_LOGGER: "+ er + line)
+                logger.error("SERVICE_LOGGER: "+ error + line)
         log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 

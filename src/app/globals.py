@@ -12,23 +12,21 @@
 import subprocess, os, logging
 from flask_apscheduler import APScheduler
 from datetime import timedelta, time
-# from concurrent.futures import ThreadPoolExecutor
 
 class Globals():
     def __init__(self):
-        # Information from config.yml
+        # From config.yml
         self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single']
         self.MANUAL_MODE = ['button', 'text', 'text_single']
         self.VALID_TOKEN_LOCATIONS = ['guestinfo', 'file']
         self.VALID_SUBMISSION_METHODS = ['display', 'grader_post']
         self.VALID_SERVICE_TYPES = ['ping', 'socket', 'web']
-        # important directories and files
+        # files/directories
         self.basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.custom_script_dir = f"{self.basedir}/custom_scripts"
         self.hosted_file_directory = f"{self.basedir}/hosted_files"
         self.yaml_path =  f"{self.basedir}/config.yml"
         self.ssl_dir = f"{self.basedir}/app/ssl"
-        #####self.img_dir = f"{self.basedir}/"
         # configuration globals
         challenge_id = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.isolationTag'", shell=True, capture_output=True).stdout.decode('utf-8').strip().replace("-", "")
         self.challenge_id = challenge_id
@@ -59,7 +57,7 @@ class Globals():
         # submission globals
         self.grader_url = ""
         self.grader_key = ""
-        # cron specific globals
+        # cron globals
         self.cron_limit = None
         self.cron_interval = None
         self.cron_delay = None
@@ -89,10 +87,10 @@ class Globals():
         self.challenge_code = challenge_code
         self.fatal_error = False
         self.in_workspace = True if "workspace" in challenge_code else False
-        # attributes to track current status of server
+        # current status
         self.task = None
         self.server_ready = False
         self.executor = None
-        ## scheduler contains scheduler object that is referenced when add/pausing/deleting jobs.
+        ## Scheduler is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
         self.challenge_name = ""
