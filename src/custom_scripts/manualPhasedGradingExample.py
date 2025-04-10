@@ -29,7 +29,7 @@ def phase2(submission=None):
     if submission['GradingCheck2'] == 'test2':
         results['GradingCheck2'] = "Success"
     else:
-        results['GradingCheck12'] = "Failure"
+        results['GradingCheck2'] = "Failure"
     return results
 
 

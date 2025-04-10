@@ -96,3 +96,9 @@ class Globals():
         ## scheduler contains scheduler object that is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
         self.challenge_name = ""
+        self.challenge_name_uri = ""
+        self.xapi_enabled = False
+        self.xapi_endpoint = ""
+        self.xapi_username = ""
+        self.xapi_password = ""
+        self.xapi_actor_name = "EmptyUser"

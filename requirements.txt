@@ -29,3 +29,4 @@ typing_extensions
 tzlocal
 urllib3
 Werkzeug
+tincan

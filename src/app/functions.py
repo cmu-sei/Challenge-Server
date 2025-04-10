@@ -16,6 +16,18 @@ from concurrent.futures import Future
 from time import sleep
 from app.extensions import logger, globals, db
 from app.models import QuestionTracking,PhaseTracking, EventTracker
+from tincan import (
+    RemoteLRS,
+    Statement,
+    Agent,
+    Verb,
+    Activity,
+    ActivityDefinition,
+    LanguageMap,
+    Result,
+    Context,
+    ContextActivities
+)
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -32,6 +44,17 @@ def read_config(app):
             exit(1)
 
     globals.challenge_name = conf['challenge_name']
+    globals.challenge_name_uri = ''.join(filter(str.isalnum, conf['challenge_name']))
+
+    xapi_conf = conf.get('xapi', {})
+    globals.xapi_enabled = xapi_conf.get('enabled', False)
+    globals.xapi_endpoint = xapi_conf.get('endpoint', "")
+    globals.xapi_username = xapi_conf.get('username', "")
+    globals.xapi_password = xapi_conf.get('password', "")
+    globals.xapi_actor_name = xapi_conf.get('actor_name', "EmptyUser")
+
+    logger.info(f"xAPI Enabled: {globals.xapi_enabled}")
+    logger.info(f"xAPI Endpoint: {globals.xapi_endpoint}")
 
     # set grading enabled. False if not set in config file
     globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
@@ -277,6 +300,7 @@ def check_questions():
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
+            send_completed_xapi_tincan()
 
 
 def get_current_phase():
@@ -309,9 +333,23 @@ def update_db(type_q,label=None, val=None):
                     cur_question.response = val.split('--',1)[1]
                 if ('--' not in val) and (cur_question.response == ''):
                     cur_question.response = "N/A"
+                was_solved = cur_question.solved
                 if "success" in val.lower():
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    # xAPI: If newly solved, send question-level 'passed' statement
+                    if not was_solved:
+                        part_info = globals.grading_parts.get(label, {})
+                        question_text = part_info.get('text', '')
+                        user_response = cur_question.response
+                        send_question_statement(label, question_text, True)
+                else:
+                    # xAPI: If newly failed, send question-level 'failed' statement
+                    if not was_solved:
+                        part_info = globals.grading_parts.get(label, {})
+                        question_text = part_info.get('text', '')
+                        user_response = cur_question.response
+                        send_question_statement(label, question_text, False)
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception occurred while update DB with completed question. Exception: {e}. Exiting.")
@@ -815,3 +853,115 @@ def record_solves():
                     new_event = EventTracker(data=json.dumps(cur_data))
                     db.session.add(new_event)
                     db.session.commit()
+
+
+def get_remote_lrs():
+    """
+    Returns a RemoteLRS object based on the config in globals.
+    Returns None if xAPI is disabled or missing config.
+    """
+    if not globals.xapi_enabled or not globals.xapi_endpoint:
+        return None
+
+    lrs = RemoteLRS(
+        version="1.0.3",
+        endpoint=globals.xapi_endpoint,
+        username=globals.xapi_username,
+        password=globals.xapi_password
+    )
+    return lrs
+
+
+def send_completed_xapi_tincan():
+    """
+    """
+    lrs = get_remote_lrs()
+    if not lrs:
+        return
+
+    verb = Verb(
+        id="http://adlnet.gov/expapi/verbs/completed",
+        display=LanguageMap({'en-US': 'completed'})
+    )
+    actor = Agent(
+        name=globals.xapi_actor_name,
+        mbox=f"mailto:{globals.xapi_actor_name}@example.com"
+    )
+    activity = Activity(
+        id=f"https://challenge.us/xapi/{globals.challenge_name_uri}",
+        definition=ActivityDefinition(
+            name=LanguageMap({'en-US': globals.challenge_name}),
+            description=LanguageMap({'en-US': 'All questions solved'})
+        )
+    )
+    statement = Statement(
+        actor=actor,
+        verb=verb,
+        object=activity
+    )
+    response = lrs.save_statement(statement)
+    if not response.success:
+        logger.error(f"Failed to send completed statement to LRS: {response.data}")
+    else:
+        logger.info(f"Sent xAPI 'completed' statement for challenge {globals.challenge_name}")
+
+
+def send_question_statement(
+    question_label: str,
+    question_text: str,
+    success: bool,
+):
+    """
+    Send an xAPI statement at the question level.
+    """
+    lrs = get_remote_lrs()
+    if not lrs:
+        return
+
+    actor = Agent(
+        name=globals.xapi_actor_name,
+        mbox=f"mailto:admin@example.com"
+    )
+
+    verb_id = "http://adlnet.gov/expapi/verbs/passed" if success else "http://adlnet.gov/expapi/verbs/failed"
+    verb = Verb(
+        id=verb_id,
+        display=LanguageMap({"en-US": "passed" if success else "failed"})
+    )
+
+    question_id = f"https://challenge.us/xapi/{globals.challenge_name_uri}/{question_label}"
+    activity_def = ActivityDefinition(
+        name=LanguageMap({"en-US": question_label}),
+        description=LanguageMap({"en-US": question_text}),
+    )
+    question_activity = Activity(
+        id=question_id,
+        definition=activity_def
+    )
+
+    parent_activity_id = f"https://challenge.us/xapi/{globals.challenge_name_uri}"  # same ID used in the top-level statements
+    parent_activity = Activity(id=parent_activity_id)
+
+    context = Context(
+        context_activities=ContextActivities(
+            parent=[parent_activity]
+        )
+    )
+
+    statement_result = Result(
+        success=success,
+    )
+
+    statement = Statement(
+        actor=actor,
+        verb=verb,
+        object=question_activity,
+        result=statement_result,
+        context=context
+    )
+
+    response = lrs.save_statement(statement)
+    if not response.success:
+        logger.error(f"Failed to save question statement: {response.data}")
+    else:
+        logger.info(f"{actor.name} {verb.display['en-US']} {question_label} (success={success})")
