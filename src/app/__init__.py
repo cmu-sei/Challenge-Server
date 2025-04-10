@@ -11,13 +11,12 @@
 
 import threading, subprocess, signal, os, json, datetime
 from flask import Flask, url_for, redirect, flash, request
-from apscheduler.events import EVENT_ALL, EVENT_JOB_MODIFIED ,EVENT_ALL_JOBS_REMOVED, EVENT_JOB_ERROR, EVENT_JOB_REMOVED, EVENT_SCHEDULER_PAUSED, EVENT_SCHEDULER_SHUTDOWN
 
 #local imports
 from config import Config
-from app.functions import set_cron_vars, run_cron_thread, record_solves
+from app.functions import run_cron_thread, record_solves
 from app.extensions import globals, logger, db
-from app.models import QuestionTracking, PhaseTracking, EventTracker
+from app.models import EventTracker
 
 
 def create_app(config_class=Config):

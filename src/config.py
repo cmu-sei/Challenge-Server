@@ -9,8 +9,7 @@
 #
 
 
-import os, sys
-from flask import Flask, session
+import os
 from app.extensions import globals
 
 class Config:

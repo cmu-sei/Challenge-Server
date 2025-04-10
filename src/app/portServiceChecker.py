@@ -9,11 +9,10 @@
 #
 
 
-import subprocess, logging, re, socket, requests, ipaddress
+import subprocess, re, socket, requests
 from datetime import datetime
 from time import sleep
-from pythonping import ping
-from app.extensions import logger, globals
+from app.extensions import logger
 
 
 def checkLocalPorts():
