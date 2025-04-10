@@ -1,0 +1,113 @@
+#
+# Challenge Sever
+# Copyright 2024 Carnegie Mellon University.
+# NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+# Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+# [DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+# DM24-0645
+#
+
+# Please read the `README.md` file to get detailed explanation of available configurations.
+challenge_name: ""
+
+# startup:
+#   # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
+#   runInWorkspace: true
+#   scripts:
+#     - startup.py
+
+# required_services:
+## Example: Ensure you can ping this host before startup scripts kick off
+# - host: example.us
+#   type: ping
+#   block_startup_scripts: true
+
+## Example: Ensure you can reach this host on port 22 before startup scripts kick off
+# - host: example.us
+#   port: 22
+#   type: socket
+#   block_startup_scripts: true
+
+## Example: Ensure you can complete a web request to http://example.us:8888/example. Don't wait for this to be available before startup scripts.
+# - host: example.us
+#   port: 8888
+#   type: web
+#   path: /example
+#   block_startup_scripts: false
+
+hosted_files:
+  # Set this to true if you have files that need to be hosted
+  enabled: false
+
+info_and_services:
+  info_home_enabled: false
+  services_home_enabled: false
+
+# services_to_log:
+## Example:
+#- host: '10.4.4.251'
+#  user: user
+#  password: tartans
+#  service: pump.service
+
+#- host: '10.4.4.250'
+#  user: user
+#  password: tartans
+#  service: update.service
+
+grading:
+  enabled: true
+  grader_post: false
+  manual_grading: true
+  manual_grading_script: manualGradingExample.py
+  # manual_grading_script: manualPhasedGradingExample.py # Use this example when doing phased-grading
+  cron_grading: false
+  cron_grading_script: null
+  cron_interval: 5
+  cron_at: null
+  cron_delay: 10
+  cron_limit: null
+  rate_limit: 0
+  token_location: file
+
+  submission:
+    method: display
+    grader_url: ""
+    grader_key: ""
+
+# This is a non-phased example
+  parts:
+    GradingCheck1:
+      token_name: example-token1
+      text: "Question 1: Enter 'test1' to pass"
+      mode: text
+    GradingCheck2:
+      token_name: example-token2
+      text: "Question 2: Enter 'test2' to pass"
+      mode: text
+    GradingCheck3:
+      token_name: example-token3
+      text: "Question 3: Enter 'test3' to pass"
+      mode: text
+    GradingCheck4:
+      token_name: example-token4
+      text: "Question 4: Enter 'test4' to pass"
+      mode: text
+
+  phases: false
+
+  # This is a phased example
+  # parts:
+  #   GradingCheck1:
+  #     token_name: example-token1
+  #     text: "Question 1: Enter 'test1' to pass"
+  #     mode: text
+  #   GradingCheck2:
+  #     token_name: example-token2
+  #     text: "Question 2: Enter 'test2' to pass"
+  #     mode: text
+
+  # phases: true
+  # phase_info:
+  #   phase1: ["GradingCheck1"]
+  #   phase2: ["GradingCheck2"]

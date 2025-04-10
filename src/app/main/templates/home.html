@@ -1,0 +1,73 @@
+<!--
+Challenge Sever
+Copyright 2024 Carnegie Mellon University.
+NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+[DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+DM24-0645
+-->
+
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block header %}
+{% endblock %}
+
+{% block content %}
+
+<div class="welcome-message">
+    <h1><u>{{g.globs.challenge_name}}</u></h1>
+    <form>
+        <fieldset style="width:70%;">
+            <table class="res-table">
+                <thead class="res-thead">
+                    <th class="home_table_page">Page</th>
+                    <th class="home_table_func">Function</th>
+                </thead>
+                <tr>
+                    <td class="home_table_page">Home</td>
+                    <td class="home_table_func">This landing page</td>
+                </tr>
+                {% if g.globs.info_home_enabled %}
+                <tr>
+                    <td class="home_table_page">Getting Started</td>
+                    <td class="home_table_func">Information about the challenge and how to get started.
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.grading_enabled %}
+                <tr>
+                    <td class="home_table_page">Tasks</td>
+                    <td class="home_table_func">Current graded tasks. Current tasks might change
+                        as you progress through the challenge.</td>
+                </tr>
+                {% endif %}
+                {% if g.globs.hosted_files_enabled %}
+                <tr>
+                    <td class="home_table_page">Hosted Files</td>
+                    <td class="home_table_func">Files that can be downloaded.</ul>
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.grading_enabled %}
+                <tr>
+                    <td class="home_table_page">Results</td>
+                    <td class="home_table_func">Results of the last grading attempt.</ul>
+                    </td>
+                </tr>
+                {% endif %}
+                {% if g.globs.services_home_enabled == True %}
+                <tr>
+                    <td class="home_table_page">Services</td>
+                    <td class="home_table_func">Status of network services.
+                        This page can be useful for troubleshooting.</td>
+                </tr>
+                {% endif %}
+            </table>
+        </fieldset>
+    </form>
+</div>
+
+
+{% endblock %}

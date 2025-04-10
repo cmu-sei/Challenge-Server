@@ -1,0 +1,77 @@
+<!--
+Challenge Sever
+Copyright 2024 Carnegie Mellon University.
+NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+[DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+DM24-0645
+-->
+
+{% extends "base.html" %}
+
+{% block title %}Tasks{% endblock %}
+
+{% block header %}
+{% endblock %}
+
+{% block content %}
+
+{% if g.globs.grading_enabled == False %}
+<span id="title" style="padding-top:20px;">
+    There is no grading for this challenge.
+</span>
+{% else %}
+<span id="title" style="padding-top:20px;">
+    Tasks
+</span>
+
+<form method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data" id="min-top-padding">
+    <fieldset>
+        <!--<legend align='center'>Challenge Questions</legend>-->
+        <table class="res-table">
+            {% if 'text' in questions.keys() %}
+            <thead class="res-thead">
+                <th class="q_item1"><label>Task</label></th>
+                <th class="q_item2"><label>Submission</label></th>
+            </thead>
+            {% for key, value in questions['text'].items() %}
+            <tr class="bodypost">
+                <td class="q_item1"><label>{{ value['text'] }}</label></td>
+                <td class="q_item2"><input type='text' name="{{key}}" value=""></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            {% if 'button' in questions.keys() %}
+            <tr class="bodypost" style="padding-top: 15px;font-size: 20px;">
+                <th colspan=2 class="q_long_line">Tasks below will be graded when 'submit' button is clicked.</th>
+            </tr>
+            {% for key, value in questions['button'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+                <td hidden><input type="hidden" name="{{key}}"></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            {% if 'cron' in questions.keys() %}
+            <tr class="bodypost">
+                <th colspan=2 class="q_long_line">Tasks below will be auto-graded
+                    {% if g.globs.cron_type == 'at' %}
+                    at {{ g.globs.cron_at }}
+                    {% else %}
+                    every {{ g.globs.cron_interval }} seconds
+                    {% endif %}
+                </th>
+            </tr>
+            {% for key, value in questions['cron'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </table>
+        <br>
+        <input type="submit" name="submit" value="Submit" style="font-size: 20px;">
+    </fieldset>
+</form>
+{% endif %}
+{% endblock %}

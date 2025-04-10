@@ -1,0 +1,43 @@
+<!--
+Challenge Sever
+Copyright 2024 Carnegie Mellon University.
+NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+[DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+DM24-0645
+-->
+
+{% extends "base.html" %} {% block title %}Grading{% endblock %} {% block header
+%} {% endblock %} {% block content %}
+
+<span id="title" style="padding-top: 30px; padding-bottom: 30px">
+    Grading in Progress
+</span>
+
+<form action="{{ url_for('main.grade') }}" method="GET" enctype="multipart/form-data">
+    <fieldset>
+        <table class="res-table">
+            <thead class="res-thead">
+                <th class="grading"><label>Your challenge is being graded</label></th>
+            </thead>
+            <tr>
+                <td class="grading">
+                    <label>There are no results from your grading attempt at {{submit_time}}
+                        yet.</label>
+                </td>
+            </tr>
+            <tr>
+                <td class="grading">
+                    <label>This page will auto-refresh every 5 seconds.<br /><br />
+                        You can also click the button below to see if your results
+                        are ready sooner.</label>
+                </td>
+            </tr>
+        </table>
+        <input type="submit" name="refresh" value="Refresh" style="font-size: 20px" />
+    </fieldset>
+</form>
+
+<script src=" {{ url_for('main.static',filename='js/refresh.js') }} "></script>
+
+{% endblock %}

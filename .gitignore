@@ -43,3 +43,4 @@ nodeLanguageServer/**
 nodeLanguageServer.*/**
 dist/**
 src/__pycache__
+src/challenge.db

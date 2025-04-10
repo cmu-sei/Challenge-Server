@@ -1,0 +1,71 @@
+<!--
+Challenge Sever
+Copyright 2024 Carnegie Mellon University.
+NO WARRANTY. THIS CARNEGIE MELLON UNIVERSITY AND SOFTWARE ENGINEERING INSTITUTE MATERIAL IS FURNISHED ON AN "AS-IS" BASIS. CARNEGIE MELLON UNIVERSITY MAKES NO WARRANTIES OF ANY KIND, EITHER EXPRESSED OR IMPLIED, AS TO ANY MATTER INCLUDING, BUT NOT LIMITED TO, WARRANTY OF FITNESS FOR PURPOSE OR MERCHANTABILITY, EXCLUSIVITY, OR RESULTS OBTAINED FROM USE OF THE MATERIAL. CARNEGIE MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT INFRINGEMENT.
+Licensed under a MIT (SEI)-style license, please see license.txt or contact permission@sei.cmu.edu for full terms.
+[DISTRIBUTION STATEMENT A] This material has been approved for public release and unlimited distribution.  Please see Copyright notice for non-US Government use and distribution.
+DM24-0645
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8;application/javascript">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="{{url_for('main.static',filename='css/base.css')}}">
+    <script type="text/javascript" src="{{ url_for('main.static', filename='js/jquery.min.js') }}"></script>
+    {% block header %}{% endblock %}
+</head>
+
+<body>
+    <section>
+        <span id="title">
+            Challenge Server
+        </span>
+        <nav class="navbar">
+            <div>
+                <ul class="navbarul">
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.home')}}">Home</a></li>
+                    {% if g.globs.info_home_enabled %}
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.home')}}">Starting Off</a>
+                    </li>
+                    {% endif %}
+                    {% if g.globs.grading_enabled %}
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.tasks')}}">Tasks</a></li>
+                    {% endif %}
+                    {% if g.globs.hosted_files_enabled %}
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.list_files')}}">Hosted
+                            Files</a></li>
+                    {% endif %}
+                    {% if g.globs.grading_enabled %}
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.results')}}">Results</a></li>
+                    {% endif %}
+                    {% if g.globs.services_home_enabled == True %}
+                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.services')}}">Services</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+        <div>
+            <div>
+                <center>
+                    {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                    <h3 class="notification">
+                        {{ messages[-1]|safe }}
+                    </h3>
+                    {% endif %}
+                    {% endwith %}
+
+                    {% block content %}{% endblock %}
+                </center>
+            </div>
+        </div>
+    </section>
+</body>
+
+</html>
