@@ -9,11 +9,10 @@
 #
 
 
-import subprocess, logging, re, socket, requests, ipaddress
+import subprocess, re, socket, requests
 from datetime import datetime
 from time import sleep
-from pythonping import ping
-from app.extensions import logger, globals
+from app.extensions import logger
 
 
 def checkLocalPorts():
@@ -35,7 +34,6 @@ def checkLocalPortLoop(interval=30):
     while True:
         date = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
         open_ports = checkLocalPorts()
-        # Changed to a raw string literal to correctly handle the \s pattern
         stripped = re.sub(r"\s+", " ", open_ports).replace("\n", "\\n")
         logger.info(f"Open ports: {stripped}")
 

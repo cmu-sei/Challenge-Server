@@ -8,15 +8,13 @@
 # DM24-0645
 #
 
+#######
+## This file contains objects shared by components
+#######
 
 import logging
 from flask_sqlalchemy import SQLAlchemy
 from app.globals import Globals
-
-
-#######
-## This file contains all of the persistent objects to be used throughout the sites execution
-#######
 
 # Create database object, currently unused
 db = SQLAlchemy()

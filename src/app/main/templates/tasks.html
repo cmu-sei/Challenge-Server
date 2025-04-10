@@ -43,7 +43,7 @@ DM24-0645
             {% endif %}
             {% if 'button' in questions.keys() %}
             <tr class="bodypost" style="padding-top: 15px;font-size: 20px;">
-                <th colspan=2 class="q_long_line">Tasks below will be graded once 'submit' button is clicked.</th>
+                <th colspan=2 class="q_long_line">Tasks below will be graded when 'submit' button is clicked.</th>
             </tr>
             {% for key, value in questions['button'].items() %}
             <tr class="bodypost">
@@ -54,7 +54,7 @@ DM24-0645
             {% endif %}
             {% if 'cron' in questions.keys() %}
             <tr class="bodypost">
-                <th colspan=2 class="q_long_line">Tasks below will be auto-graded and are checked
+                <th colspan=2 class="q_long_line">Tasks below will be auto-graded
                     {% if g.globs.cron_type == 'at' %}
                     at {{ g.globs.cron_at }}
                     {% else %}

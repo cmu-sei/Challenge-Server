@@ -8,11 +8,9 @@
 # DM24-0645
 #
 
+# This script cleans up files to ensure a clean boot after saving a VM running this service
 
 import subprocess, json, datetime, os
-
-## This script will handle configuring services and editing/removing files during shutdown to ensure it is in correct state for committing when off.
-## This script will only run in the workspace, these files should not be edited if the server is rebooted during deployment.
 
 def runShutdown():
     ## Use challenge code to check if server running in workspace or gamespace
@@ -42,6 +40,6 @@ def runShutdown():
 
 if __name__ == "__main__":
     if os.geteuid() != 0:
-        print("Script must be ran as root\n")
+        print("Script must be run as root\n")
         exit()
     runShutdown()

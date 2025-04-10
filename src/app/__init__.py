@@ -11,13 +11,12 @@
 
 import threading, subprocess, signal, os, json, datetime
 from flask import Flask, url_for, redirect, flash, request
-from apscheduler.events import EVENT_ALL, EVENT_JOB_MODIFIED ,EVENT_ALL_JOBS_REMOVED, EVENT_JOB_ERROR, EVENT_JOB_REMOVED, EVENT_SCHEDULER_PAUSED, EVENT_SCHEDULER_SHUTDOWN
 
 #local imports
 from config import Config
-from app.functions import set_cron_vars, run_cron_thread, record_solves
+from app.functions import run_cron_thread, record_solves
 from app.extensions import globals, logger, db
-from app.models import QuestionTracking, PhaseTracking, EventTracker
+from app.models import EventTracker
 
 
 def create_app(config_class=Config):
@@ -85,7 +84,7 @@ def create_app(config_class=Config):
                             sub_obj.data = json.dumps(cur_cnt)
                             db.session.commit()
                         except Exception as e:
-                            logger.error(f"Exception occurred trying to increment submission counter. (__init__.py, line 68). Exception: {str(e)}")
+                            logger.error(f"Exception trying increment submission counter. Exception: {str(e)}")
                             exit(1)
     return app
 
@@ -130,25 +129,24 @@ def start_grading_server(app):
 
     # Add first entry to DB to indicate that the server has started
     with app.app_context():
-        if EventTracker.query.filter_by(id=0).first() == None:
+        if not EventTracker.query.filter_by(id=0).first():
             challenge_data = {"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":f"Challenge Started","recorded_at":datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             new_event = EventTracker(id=0, data=json.dumps(challenge_data))
             db.session.add(new_event)
             db.session.commit()
-        if EventTracker.query.filter_by(id=1).first() == None:
+        if not EventTracker.query.filter_by(id=1).first():
             cnt_data = {"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Submission Counter","number_submissions":"0","recorded_at":datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             sub_counter = EventTracker(id=1, data=json.dumps(cnt_data))
             db.session.add(sub_counter)
             db.session.commit()
-    ## These lines configure the flask scheduler
-    globals.scheduler.init_app(app)
-    ## Below line adds listener to scheduler where if one of these events occurs, it can trigger execution of specific function
-    #globals.scheduler.add_listener(**Function**,EVENT_JOB_MODIFIED|EVENT_ALL_JOBS_REMOVED|EVENT_JOB_ERROR|EVENT_JOB_REMOVED|EVENT_SCHEDULER_PAUSED|EVENT_SCHEDULER_SHUTDOWN)
-    globals.scheduler.add_job(id="Record_Solves",func=record_solves,trigger="interval",seconds=10)      # creates a job that runs every 10 seconds and executes the function "record_solves"
-    globals.scheduler.start()
-    # Log that the server is starting up and start server on port 80
-    logger.info(f"Starting the Challenge Server.")
 
+    globals.scheduler.init_app(app)
+
+    # create a job that runs every 10 seconds and executes the function "record_solves"
+    globals.scheduler.add_job(id="Record_Solves",func=record_solves,trigger="interval",seconds=10)
+    globals.scheduler.start()
+
+    logger.info(f"Starting the Challenge Server.")
     app.run(host='127.0.0.1', port=8888, debug=False)
     # Use the below if you have SSL certs
     # app.run(host='127.0.0.1', port=8888, debug=False, ssl_context=(f'{globals.ssl_dir}/host.pem', f'{globals.ssl_dir}/host-key.pem'))

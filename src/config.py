@@ -9,8 +9,7 @@
 #
 
 
-import os, sys
-from flask import Flask, session
+import os
 from app.extensions import globals
 
 class Config:
@@ -21,6 +20,3 @@ class Config:
     BASE_DIR = globals.basedir
     STATIC_FOLDER = f"{globals.basedir}/app/main/static"
     TEMPLATES_FOLDER = f"{globals.basedir}/app/main/templates"
-    ## Below configs are related to setting up the Scheduler API and allowing calls to it
-    #SCHEDULER_API_ENABLED = True
-    #SCHEDULER_AUTH =  HTTPBasicAuth()

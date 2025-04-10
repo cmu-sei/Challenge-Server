@@ -22,7 +22,7 @@ class QuestionTracking(db.Model):
     time_solved = db.Column(db.String, nullable=False)
 
     def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}      #  if c.name != ''
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class PhaseTracking(db.Model):

@@ -9,10 +9,8 @@
 #
 
 
-import subprocess, io, datetime, random, string
-from flask import Blueprint, render_template, request, Response, current_app, redirect, url_for, abort, send_from_directory, g
-from app.extensions import logger, globals
-from app.functions import do_grade
+from flask import Blueprint, render_template, redirect, url_for, g
+from app.extensions import globals
 
 info = Blueprint("info",__name__, template_folder=f'templates', static_folder=f'static')     # add path to templates/static if error
 
