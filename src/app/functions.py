@@ -239,7 +239,7 @@ def read_config(app):
                 exit(1)
 
     # set hosted files. False if not set in config file
-    globals.hosted_files_enabled = conf['hosted_files']['enabled'] if 'hosted_files' in conf and 'enabled' in conf['hosted_files'] else False
+    globals.hosted_files_enabled = conf.get('hosted_files').get('enabled') or False
     logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
 
     # check status of `info` pages

@@ -36,7 +36,7 @@ class Globals():
         self.blocking_services = []
         self.blocking_threadpool = None
         self.grading_enabled = None
-        self.hosted_files_enabled = None
+        self.hosted_files_enabled = False
         self.grading_mode = list()
         self.manual_grading_script = None
         self.cron_grading_script = None
