@@ -4,15 +4,13 @@ This is the **Challenge Server** - designed for hands-on cybersecurity challenge
 
 The idea is to have a centralized server that developers can use for startup/grading scripts and users can go to for grading and viewing results inside challenges.
 
-_Disclaimer: The Challenge Server was developed with under the assumption that it would be used alongside [TopoMojo](https://github.com/cmu-sei/topomojo) and VMware. Some phrasing here may use TopoMojo and VMware terminology. If using this service outside of TopoMojo and VMware, some adjustments may be required._
-
 ## Using the Challenge Server
 
-The Challenge Server primarily consists of a web server written in Python. At startup, the server will read the config file and apply those settings. Then, the server will run startup scripts, host files for download, supply ways for users to ask for grading, and more!
+At startup, the Challenge Server will read the config file and apply settings. Then, the server will run startup scripts, host files for download, supply ways for users to ask for grading, and more!
 
-Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. The config file is heavily commented to help figure out which settings you may need.
+Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. Check the [supplemental README.md](./src/README.md) for details on configuration options.
 
-In most cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
+In some cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
 
 ```bash
 sudo systemctl restart challengeserver.service
