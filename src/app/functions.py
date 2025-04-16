@@ -155,7 +155,7 @@ def read_config(app):
             exit(1)
         logger.info(f"Grader URL: {globals.grader_url}")
 
-        # use guestinfo variable for grader_url or use the config file setting if there is no guestinfo variable
+        # use environment variable for grader_url or fall back to the config file
         globals.grader_key =  os.getenv('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
         if globals.submission_method == 'grader_post' and not globals.grader_key:
             logger.error(f"grader_key is not defined in environment variable CS_GRADER_KEY or config file. grader_key is required when submission method if grader_post.")
