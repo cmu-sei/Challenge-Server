@@ -13,7 +13,7 @@ REQUIREMENTS := requirements.txt
 APP_DIR := ./src
 APP := app.py
 
-.PHONY: all venv run update freeze clean
+.PHONY: all venv run update freeze clean test docker-build docker-run docker-all
 
 all: venv run
 
@@ -33,6 +33,14 @@ update:
 
 freeze:
 	$(VENV_DIR)/bin/pip freeze | cut -d '=' -f 1 > $(REQUIREMENTS)
+
+docker-build:
+	docker build -t challenge-server .
+
+docker-run:
+	docker run -p 8888:8888 challenge-server
+
+docker-all: docker-build docker-run
 
 clean:
 	sudo rm -rf $(VENV_DIR)
