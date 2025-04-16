@@ -174,8 +174,9 @@ This section contains options that relate to grading of both manual and cron typ
   - set this to the number of seconds you want the user to be required to wait in between grading attempts
   - The value `0` means there is no limit
 - `token_location`
-  - set to `[guestinfo]` if tokens are located in guestinfo variables. This is usually what is used.
-  - set to `[file]` if tokens are located in a file on disk.
+  - set to `env` if tokens are located in environment variables. **This is the default.**
+  - set to `guestinfo` if tokens are located in VMware guestinfo variables.
+  - set to `file` if tokens are located in a file on disk.
 
 ### grading subsection: submission
 

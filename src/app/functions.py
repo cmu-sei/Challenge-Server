@@ -126,20 +126,25 @@ def read_config(app):
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
-        globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
+        rate_limit_env = os.getenv('CS_GRADING_RATE_LIMIT')
+        rate_limit_conf = conf['grading'].get('rate_limit')
+        rate_limit_seconds = int(rate_limit_env) if rate_limit_env is not None else (
+            int(rate_limit_conf) if rate_limit_conf is not None else 0
+            )
+        globals.grading_rateLimit = datetime.timedelta(seconds=rate_limit_seconds)
         logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
 
-        # set token location. "guestinfo" is default. Error if not recognized.
-        globals.token_location = conf['grading']['token_location'] if 'token_location' in conf['grading'] else 'guestinfo'
+        # set token location. "env" is default. Error if not recognized.
+        globals.token_location =  os.getenv('CS_TOKEN_LOCATION') or conf['grading'].get('token_location') or 'env'
         if globals.token_location not in globals.VALID_TOKEN_LOCATIONS:
-            logger.error(f"Error parsing config file. Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
+            logger.error(f"Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
             exit(1)
         logger.info(f"Token location: {globals.token_location}")
 
         # set grading submission method. "display" is default. Error if not recognized
-        globals.submission_method = conf['grading']['submission']['method'] if 'submission' in conf['grading'] and 'method' in conf['grading']['submission'] else 'display'
+        globals.submission_method = os.getenv('CS_SUBMISSION_METHOD') or conf['grading'].get('submission').get('method') or 'display'
         if globals.submission_method not in globals.VALID_SUBMISSION_METHODS:
-            logger.error(f"Error parsing config file. Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
+            logger.error(f"Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
             exit(1)
         logger.info(f"Submission method: {globals.submission_method}")
 
@@ -663,8 +668,19 @@ def read_token(part_name):
             globals.fatal_error = True
         return "Unexpected error encountered. Contact an administrator."
 
-    # pull tokens from guestinfo if that is the setting
-    if globals.token_location == 'guestinfo':
+    # read tokens from env var
+    if globals.token_location == 'env':
+        token = os.getenv(value)
+        if not token:
+            logger.error(f"Environment variable for token {value} is empty.")
+            if globals.grader_post:
+                globals.fatal_error = True
+            return "Unexpected error encountered. Contact an administrator."
+        else:
+            return token
+
+    # read tokens from guestinfo
+    elif globals.token_location == 'guestinfo':
         try:
             output = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.{value}'", shell=True, capture_output=True)
             if 'no value' in output.stderr.decode('utf-8').lower():
@@ -679,8 +695,8 @@ def read_token(part_name):
                 globals.fatal_error = True
             return "Unexpected error encountered. Contact an administrator."
 
-    # read token from file if guestinfo is not the setting
-    else:
+    # read token from file
+    elif globals.token_location == 'file':
         try:
             with open(f"{globals.basedir}/app/tokens/{value}", 'r') as f:
                 return f.readline()

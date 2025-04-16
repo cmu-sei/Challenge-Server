@@ -38,16 +38,12 @@ The above command will put you in a `more`-style view of the systemd logs for th
 sudo journalctl -e -u challengeserver.service
 ```
 
-## Required Guestinfo Variables
+## Required Environment Variables
 
-The Challenge Server relies on VMware guestinfo variables to gather some information.
+In order to operate as intended, the Challenge Server requires 2 environment variables.
 
-In order to operate as intended, the Challenge Server requires 2 guestinfo variables.
-
-1. `code` - This guestinfo variable should be a string that contains a "challenge code" or a "slug" that identified this challenge. Example: `c00`. If this guestinfo variable is not set, the Challenge Server will always assume that it is running in a workspace.
-1. `variant` - This guestinfo variable should be a string that contains which TopoMojo variant is deployed. Example: `2`. If this guestinfo variable is not set, the Challenge Server will set the variant to a default of `-1`
-
-The Challenge Server can also read "answer tokens" from Guestinfo if configured to do so.
+1. `CS_CODE` - This environment variable should be a string that contains a "challenge code" or a "slug" that identified this challenge. Example: `c00`. If this environment variable is not set, the Challenge Server will always assume that it is running in a workspace.
+1. `CS_VARIANT` - This environment variable should be a string that contains which TopoMojo variant is deployed. Example: `2`. If this environment variable is not set, the Challenge Server will set the variant to a default of `-1`
 
 ## Monitoring Required Services
 
@@ -81,7 +77,11 @@ The challenge developer (you) can write a grading script that the server execute
 - When a certain amount of time has passed
 - When the user enters text into the website
 
-The Challenge Server will take care of reading submission tokens from guestinfo variables or a file on the Challenge Server machine (depending on the configuration) and displaying token values to the user.
+The Challenge Server will read tokens from environment variables, VMware guestinfo variables or a file and displaying/submitting the tokens depending on submission configuration.
+
+### Submission
+
+The Challenge Server can display tokens to users for copy/paste submissions on their own.
 
 The Challenge Server can also POST values to the [Gameboard application](https://github.com/cmu-sei/gameboard) and submit answers on a user's behalf.
 
