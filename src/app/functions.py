@@ -53,7 +53,7 @@ def read_config(app):
 
         # Initialize phases & add to DB
         with app.app_context():
-            if conf['grading']['phases']:
+            if conf['grading'].get('phases'):
                 globals.phases_enabled = True
                 if ('phase_info' not in conf['grading'] or (len(conf['grading']['phase_info']) == 0)):
                     logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
