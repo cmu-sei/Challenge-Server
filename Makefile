@@ -40,6 +40,15 @@ docker-build:
 docker-run:
 	docker run -p 8888:8888 challenge-server
 
+docker-test:
+	docker run -p 8888:8888 \
+		-e token1="MyToken1" \
+		-e token2="MyToken2" \
+		-e token3="MyToken3" \
+		-e token4="MyToken4" \
+		challenge-server
+
+
 docker-all: docker-build docker-run
 
 clean:
