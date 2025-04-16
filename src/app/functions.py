@@ -123,21 +123,6 @@ def read_config(app):
                 exit(1)
 
         if conf['grading']['cron_grading']:
-        # set cron grading script. Error if script is not defined or not executable
-            globals.grading_mode.append('cron')
-            if 'cron_grading_script' not in conf['grading']:
-                logger.error(f"Cron grading not script defined in config file.")
-                exit(1)
-            globals.cron_grading_script = conf['grading']['cron_grading_script']
-            logger.info(f"Cron grading script: {globals.cron_grading_script}")
-            try:
-                if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
-                    logger.error(f"Cron grading script {globals.cron_grading_script} is not executable")
-                    exit(1)
-            except Exception as e:
-                logger.error(f"Got exception {e} while checking if grading script {globals.cron_grading_script} is executable.")
-                exit(1)
-
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
@@ -159,22 +144,18 @@ def read_config(app):
         logger.info(f"Submission method: {globals.submission_method}")
 
         # additional configuration for grader_post
-        get_grader_url_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_url'", shell=True, capture_output=True)
-        if 'no value' in get_grader_url_cmd.stderr.decode('utf-8').lower() and 'grader_url' not in conf['grading']['submission']:
-            logger.error(f"grader_url is not defined in config file or guestinfo variables. grader_url is required when submission method if grader_post.")
+        globals.grader_url = os.getenv('CS_GRADER_URL') or conf['grading']['submission'].get('grader_url')
+        if globals.submission_method == 'grader_post' and not globals.grader_url:
+            logger.error(f"grader_url is not defined in environment variable CS_GRADER_URL or config file. grader_url is required when submission method if grader_post.")
             exit(1)
-        else:
-            globals.grader_url = get_grader_url_cmd.stdout.decode('utf-8').strip().replace('http:', 'https:') if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_url']
-            logger.info(f"Grader URL: {globals.grader_url}")
+        logger.info(f"Grader URL: {globals.grader_url}")
 
         # use guestinfo variable for grader_url or use the config file setting if there is no guestinfo variable
-        get_grader_key_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.grader_key'", shell=True, capture_output=True)
-        if 'no value' in get_grader_key_cmd.stderr.decode('utf-8').lower() and 'grader_key' not in conf['grading']['submission']:
-            logger.error(f"grader_key is not defined in config file or guestinfo variables. grader_key is required when submission method if grader_post.")
+        globals.grader_key =  os.getenv('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
+        if globals.submission_method == 'grader_post' and not globals.grader_key:
+            logger.error(f"grader_key is not defined in environment variable CS_GRADER_KEY or config file. grader_key is required when submission method if grader_post.")
             exit(1)
-        else:
-            globals.grader_key = get_grader_key_cmd.stdout.decode('utf-8').strip() if 'no value' not in get_grader_url_cmd.stderr.decode('utf-8').lower() else conf['grading']['submission']['grader_key']
-            logger.info(f"Grader Key: {globals.grader_key}")
+        logger.info(f"Grader Key: {globals.grader_key}")
 
     # configure required services. Empty array if setting is not in config
     globals.required_services = conf['required_services'] if 'required_services' in conf else []
@@ -545,37 +526,35 @@ def post_submission(tokens: dict):
 def set_cron_vars(conf):
     '''
     Set the value of the cron global vars
-    First try to see if there are any test guestinfo variables set
-    If there are test guestinfo variables set, then use those
-    If there are no test guestinfo variables set, then use the config file or defaults
+    Try reading values from environment variables. Fall back to config file, then defaults or error.
     '''
-    cron_interval_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.test_cron_interval'", shell=True, capture_output=True)
-    if 'no value' in cron_interval_cmd.stderr.decode('utf-8').lower():
-        globals.cron_interval = conf['grading']['cron_interval'] if conf['grading']['cron_interval'] else 60
-    else:
-        globals.cron_interval = int(cron_interval_cmd.stdout.decode('utf-8'))
-        logger.info(f"Using a guestinfo var intended for testing: cron_interval = {globals.cron_interval}")
 
-    cron_limit_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.test_cron_limit'", shell=True, capture_output=True)
-    if 'no value' in cron_limit_cmd.stderr.decode('utf-8').lower():
-        globals.cron_limit = conf['grading']['cron_limit'] if conf['grading']['cron_limit'] else -1
-    else:
-        globals.cron_limit = int(cron_limit_cmd.stdout.decode('utf-8'))
-        logger.info(f"Using a guestinfo var intended for testing: cron_limit = {globals.cron_limit}")
+    # set cron grading script. Error if script is not defined or not executable
+    globals.grading_mode.append('cron')
+    globals.cron_grading_script = os.getenv('CS_CRON_GRADING_SCRIPT') or conf['grading'].get('cron_grading_script')
+    if not globals.cron_grading_script:
+        logger.error(f"Cron grading not script defined.")
+        exit(1)
+    logger.info(f"Cron grading script: {globals.custom_script_dir}/{globals.cron_grading_script}")
+    try:
+        if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
+            logger.error(f"Cron grading script {globals.custom_script_dir}/{globals.cron_grading_script} is not executable")
+            exit(1)
+    except Exception as e:
+        logger.error(f"Got exception {e} while checking if grading script {globals.custom_script_dir}/{globals.cron_grading_script} is executable.")
+        exit(1)
 
-    cron_delay_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.test_cron_delay'", shell=True, capture_output=True)
-    if 'no value' in cron_delay_cmd.stderr.decode('utf-8').lower():
-        globals.cron_delay = conf['grading']['cron_delay'] if conf['grading']['cron_delay'] else 0
-    else:
-        globals.cron_delay = int(cron_delay_cmd.stdout.decode('utf-8'))
-        logger.info(f"Using a guestinfo var intended for testing: cron_delay = {globals.cron_delay}")
+    globals.cron_interval = int(os.getenv('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
+    logger.info(f"cron_interval: {globals.cron_interval}")
 
-    cron_at_cmd = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.test_cron_at'", shell=True, capture_output=True)
-    if 'no value' in cron_at_cmd.stderr.decode('utf-8').lower():
-        globals.cron_at = conf['grading']['cron_at']
-    else:
-        globals.cron_at = cron_at_cmd.stdout.decode('utf-8')
-        logger.info(f"Using a guestinfo var intended for testing: cron_at = {globals.cron_at}")
+    globals.cron_limit = int(os.getenv('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
+    logger.info(f"cron_limit: {globals.cron_limit}")
+
+    globals.cron_delay = int(os.getenv('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
+    logger.info(f"cron_delay: {globals.cron_delay}")
+
+    globals.cron_at = os.getenv('CS_CRON_AT') or conf['grading'].get('cron_at') or None
+    logger.info(f"cron_at: {globals.cron_at}")
 
     # calculates the total delay by using the cron_at setting and adding it to the cron_delay
     if globals.cron_at is not None:

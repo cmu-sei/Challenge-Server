@@ -28,7 +28,7 @@ class Globals():
         self.yaml_path =  f"{self.basedir}/config.yml"
         self.ssl_dir = f"{self.basedir}/app/ssl"
         # configuration globals
-        challenge_id = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.isolationTag'", shell=True, capture_output=True).stdout.decode('utf-8').strip().replace("-", "")
+        challenge_id = os.getenv('CS_ISOLATION_TAG')
         self.challenge_id = challenge_id
         self.startup_workspace = False
         self.startup_scripts = None
@@ -79,12 +79,10 @@ class Globals():
         self.current_phase = None
         # other
         self.support_code = challenge_id[:8]
-        variant_index = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.variant'", shell=True, capture_output=True).stdout.decode('utf-8').strip()
-        variant_index = "-1" if not variant_index or "##" in variant_index or len(variant_index) > 2 else str(int(variant_index) + 1)
-        self.variant_index = variant_index
-        challenge_code = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.code'", shell=True, capture_output=True).stdout.decode('utf-8').strip()
-        challenge_code = "workspace" if not challenge_code or "##" in challenge_code else challenge_code
-        self.challenge_code = challenge_code
+        variant_index = os.getenv('CS_VARIANT')
+        self.variant_index = "-1" if not variant_index or "##" in variant_index or len(variant_index) > 2 else variant_index
+        challenge_code = os.getenv('CS_CODE')
+        self.challenge_code = "workspace" if not challenge_code or "##" in challenge_code else challenge_code
         self.fatal_error = False
         self.in_workspace = True if "workspace" in challenge_code else False
         # current status
