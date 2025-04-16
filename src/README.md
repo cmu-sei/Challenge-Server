@@ -2,6 +2,13 @@
 
 This document explains each setting in the [config.yml](./config.yml).
 
+## app
+
+- `host` - IP address to host the site on (defaults to `0.0.0.0`)
+- `port` - Port to host the site on (defaults to `8888`)
+- `tls_cert` - Certificate to use for HTTPS (defaults to None)
+- `tls_key` - Private key for the HTTPS cert above (defaults to None)S
+
 ## challenge_name
 
 - Name of the challenge
