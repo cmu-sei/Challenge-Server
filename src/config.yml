@@ -8,6 +8,13 @@
 #
 
 # Please read the `README.md` file to get detailed explanation of available configurations.
+
+# app:
+#   host: 0.0.0.0
+#   port: 8888
+#   tls_cert: ""
+#   tls_key: ""
+
 challenge_name: ""
 
 # startup:

@@ -10,6 +10,12 @@ At startup, the Challenge Server will read the config file and apply settings. T
 
 Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. Check the [supplemental README.md](./src/README.md) for details on configuration options.
 
+### Using HTTPS
+
+To run the Challenge Server with HTTPS, provide the path to a TLS certificate and private key via the [config.yml](./src/config.yml) or the `CS_APP_CERT` and `CS_APP_KEY` environment variables.
+
+### Running the Challenge Server
+
 In some cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
 
 ```bash

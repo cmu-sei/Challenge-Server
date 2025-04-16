@@ -33,6 +33,11 @@ def read_config(app):
 
     globals.challenge_name = conf['challenge_name']
 
+    globals.app_host = os.getenv('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
+    globals.app_port = os.getenv('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
+    globals.app_cert = os.getenv('CS_APP_CERT') or (conf.get('app') or {}).get('tls_cert') or None
+    globals.app_key = os.getenv('CS_APP_KEY') or (conf.get('app') or {}).get('tls_key') or None
+
     # set grading enabled. False if not set in config file
     globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
     logger.info(f"Grading enabled: {globals.grading_enabled}")

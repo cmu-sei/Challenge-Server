@@ -9,12 +9,18 @@
 #
 
 
-import subprocess, os
+import os
 from flask_apscheduler import APScheduler
 from datetime import timedelta, time
 
 class Globals():
     def __init__(self):
+        # app config
+        self.app_host = None
+        self.app_port = None
+        self.app_cert = None
+        self.app_key = None
+
         # From config.yml
         self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single']
         self.MANUAL_MODE = ['button', 'text', 'text_single']
@@ -26,7 +32,6 @@ class Globals():
         self.custom_script_dir = f"{self.basedir}/custom_scripts"
         self.hosted_file_directory = f"{self.basedir}/hosted_files"
         self.yaml_path =  f"{self.basedir}/config.yml"
-        self.ssl_dir = f"{self.basedir}/app/ssl"
         # configuration globals
         challenge_id = os.getenv('CS_ISOLATION_TAG') or ""
         self.challenge_id = challenge_id
