@@ -1,14 +1,16 @@
-FROM python:3.13
+FROM python:3.13-slim
 
 WORKDIR /app
 
 # Add required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
     iproute2 \
-    procps \
-    net-tools \
-    curl \
+    iputils-ping \
+    open-vm-tools \
+    openssh-client \
     sshpass \
+    systemd \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

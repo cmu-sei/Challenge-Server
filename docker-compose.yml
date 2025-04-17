@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  challenge-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    # environment:
+    # List environment variable configurations here
+    # - CS_APP_CERT='/path/to/tls/cert'
+    # - CS_APP_HOST='0.0.0.0'
+    # - CS_APP_KEY='/path/to/tls/key'
+    # - CS_APP_PORT=8888
+    # - CS_CHALLENGE_NAME=''
+    # - CS_CRON_AT=0
+    # - CS_CRON_DELAY=0
+    # - CS_CRON_GRADING_SCRIPT='cronGrading.py'
+    # - CS_CRON_GRADING='false'
+    # - CS_CRON_INTERVAL=60
+    # - CS_CRON_LIMIT=0
+    # - CS_GRADER_KRY='abcd1234'
+    # - CS_GRADER_POST='false'
+    # - CS_GRADER_URL='https://example.com/gameboard'
+    # - CS_GRADING_RATE_LIMIT=0
+    # - CS_HOSTED_FILES='true'
+    # - CS_INFO_HOME_ENABLED='true'
+    # - CS_MANUAL_GRADING_SCRIPT="manualGradingExample.py"
+    # - CS_MANUAL_GRADING='true'
+    # - CS_SERVICES_HOME_ENABLED='true'
+    # - CS_SUBMISSION_METHOD='display'
+    # - CS_TOKEN_LOCATION='env'
+    # Optional: load all env vars from a file instead of listing individually above
+    # env_file:
+    # - .env
+    volumes:
+      # Mount the config file
+      - ./src/config.yml:/app/config.yml
+      # Mount custom_scripts
+      - ./src/custom_scripts:/app/custom_scripts
+    restart: unless-stopped
