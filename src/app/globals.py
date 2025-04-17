@@ -23,8 +23,8 @@ class Globals():
         self.app_key = None
 
         # From config.yml
-        self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single']
-        self.MANUAL_MODE = ['button', 'text', 'text_single']
+        self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single', 'mc']
+        self.MANUAL_MODE = ['button', 'text', 'text_single', 'mc']
         self.VALID_TOKEN_LOCATIONS = ['env', 'guestinfo', 'file']
         self.VALID_SUBMISSION_METHODS = ['display', 'grader_post']
         self.VALID_SERVICE_TYPES = ['ping', 'socket', 'web']

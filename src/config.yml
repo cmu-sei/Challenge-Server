@@ -86,8 +86,12 @@ grading:
   parts:
     GradingCheck1:
       token_name: token1
-      text: "Question 1: Enter 'test1' to pass"
-      mode: text
+      text: "What is the correct choice?"
+      mode: mc
+      opts:
+        a: "answer1"
+        b: "correct answer"
+        c: "answer3"
     GradingCheck2:
       token_name: token2
       text: "Question 2: Enter 'test2' to pass"

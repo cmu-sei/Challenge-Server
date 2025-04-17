@@ -31,6 +31,11 @@ services:
     # - CS_SERVICES_HOME_ENABLED='true'
     # - CS_SUBMISSION_METHOD='display'
     # - CS_TOKEN_LOCATION='env'
+    # - token1="YourToken1"
+    # - token2="YourToken2"
+    # - token3="YourToken3"
+    # - token4="YourToken4"
+
     # Optional: load all env vars from a file instead of listing individually above
     # env_file:
     # - .env

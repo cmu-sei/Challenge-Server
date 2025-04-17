@@ -149,6 +149,10 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
   - `text` - Provide the user with a text box to submit an answer.
   - `button` - Provides a button to trigger the grading script.
   - `cron` - Grade automatically on the configured schedule (see `cron_grading` settings).
+  - `mc` - Multiple Choice question.
+  - `opts` -- Multiple choice options. Only applies when question mode is `mc`.
+    - Keys start at `a` and continue in alphabetical order.
+    - Values are the text for each option.
 
 ### phases (question sets)
 

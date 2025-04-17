@@ -29,6 +29,25 @@ DM24-0645
     <fieldset>
         <!--<legend align='center'>Challenge Questions</legend>-->
         <table class="res-table">
+            {% if 'mc' in questions.keys() %}
+            <thead class="res-thead">
+                <th class="q_item1"><label>Question</label></th>
+                <th class="q_item2"><label>Answer</label></th>
+            </thead>
+            {% for k,v in questions['mc'].items() %}
+            <tr class="bodypost">
+                <td class="txt_format">{{v['text']}}</td>
+                <td>
+                    {% for opt, ans in v['opts'].items() %}
+                    <label class="form-control">
+                        <input type="radio" id="{{ opt }}" name="{{ k }}" value="{{ opt }}">
+                        {{ ans }}
+                    </label>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
             {% if 'text' in questions.keys() %}
             <thead class="res-thead">
                 <th class="q_item1"><label>Task</label></th>
