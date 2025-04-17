@@ -31,36 +31,36 @@ def read_config(app):
             logger.error("Error Reading YAML in config file")
             exit(1)
 
-    globals.challenge_name = conf['challenge_name']
+    globals.challenge_name = os.getenv('CS_CHALLENGE_NAME') or conf.get('challenge_name') or ""
 
     globals.app_host = os.getenv('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
     globals.app_port = os.getenv('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
     globals.app_cert = os.getenv('CS_APP_CERT') or (conf.get('app') or {}).get('tls_cert') or None
     globals.app_key = os.getenv('CS_APP_KEY') or (conf.get('app') or {}).get('tls_key') or None
 
-    # set grading enabled. False if not set in config file
-    globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
+    # set grading enabled. False if not set in env vars or config file
+    globals.grading_enabled = (os.getenv('CS_GRADING_ENABLED') or '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
     logger.info(f"Grading enabled: {globals.grading_enabled}")
 
     ##########  Process Grading Config
     if globals.grading_enabled:
         # set grading parts. Error if not defined
-        if 'parts' not in conf['grading']:
+        if not conf['grading'].get('parts'):
             logger.error(f"Grading parts is not defined in config file. Grading parts is required when grading is enabled.")
             exit(1)
 
-        if (not conf['grading']['manual_grading']) and (not conf['grading']['cron_grading']):
+        if (not conf['grading'].get('manual_grading')) and (not conf['grading'].get('cron_grading')):
             logger.error(f"At least one grading type must be enabled if grading is enabled.")
             exit(1)
 
         globals.grading_parts = conf['grading']['parts']
-        globals.grader_post = conf['grading']['grader_post']
+        globals.grader_post = (os.getenv('CS_GRADER_POST') or '').lower() == 'true' or conf['grading'].get('grader_post') or False
 
         # Initialize phases & add to DB
         with app.app_context():
             if conf['grading'].get('phases'):
                 globals.phases_enabled = True
-                if ('phase_info' not in conf['grading'] or (len(conf['grading']['phase_info']) == 0)):
+                if ( not conf['grading'].get('phase_info') or (len(conf['grading']['phase_info']) == 0)):
                     logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
                     exit(1)
                 globals.phases = conf['grading']['phase_info']
@@ -111,13 +111,14 @@ def read_config(app):
                     logger.error(f"Unable to add question {key} to DB. Exception:{e}.\nExiting.")
                     exit(1)
 
-        if conf['grading']['manual_grading']:
+        manual_grading = (os.getenv('CS_MANUAL_GRADING') or '').lower() =='true' or conf['grading']['manual_grading'] or False
+        if manual_grading:
         # set manual grading script. Error if script is not defined or not executable
             globals.grading_mode.append('manual')
-            if 'manual_grading_script' not in conf['grading'] :
-                logger.error(f"Manual Grading not script defined in config file.")
+            globals.manual_grading_script = os.getenv('CS_MANUAL_GRADING_SCRIPT') or conf['grading'].get('manual_grading_script')
+            if not globals.manual_grading_script:
+                logger.error(f"Manual Grading not script defined in env vars or config file.")
                 exit(1)
-            globals.manual_grading_script = conf['grading']['manual_grading_script']
             logger.info(f"Manual Grading script: {globals.manual_grading_script}")
             try:
                 if not os.access(f"{globals.custom_script_dir}/{globals.manual_grading_script}", os.X_OK):
@@ -127,7 +128,7 @@ def read_config(app):
                 logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
                 exit(1)
 
-        if conf['grading']['cron_grading']:
+        if os.getenv('CS_CRON_GRADING') =='true' or conf['grading'].get('cron_grading'):
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
@@ -211,7 +212,7 @@ def read_config(app):
     globals.blocking_threadpool = ThreadPoolExecutor(thread_name_prefix="BlockingServices")
 
     # Check for service logger config in yml & assign if enabled
-    services_list = conf['services_to_log'] if 'services_to_log' in conf else []
+    services_list = conf.get('services_to_log')
     if not services_list:
         globals.services_list = services_list
         logger.info("No services configured for logging.")
@@ -225,10 +226,11 @@ def read_config(app):
         globals.services_list = services_list
 
     # configure startup scripts. Empty array if setting is not in config
-    if 'startup' in conf:
-        globals.startup_scripts = conf['startup']['scripts'] if 'scripts' in conf['startup'] else []
+    startup = conf.get('startup')
+    if startup:
+        globals.startup_scripts = startup.get('scripts') or []
         logger.info(f"Startup scripts: {globals.startup_scripts}")
-        globals.startup_workspace = conf['startup']['runInWorkspace'] if 'runInWorkspace' in conf['startup'] else False
+        globals.startup_workspace = startup.get('runInWorkspace') or False
         logger.info(f"Run Startup Scripts in Workspace: {globals.startup_workspace}")
         # check to make sure each startup script is executable
         for startup_script in globals.startup_scripts:
@@ -244,15 +246,16 @@ def read_config(app):
                 exit(1)
 
     # set hosted files. False if not set in config file
-    globals.hosted_files_enabled = conf.get('hosted_files').get('enabled') or False
+    globals.hosted_files_enabled = (os.getenv('CS_HOSTED_FILES') or '').lower() =='true' or (conf.get('hosted_files') or {}).get('enabled') or False
     logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
 
     # check status of `info` pages
-    if conf['info_and_services']['info_home_enabled']:
+    if (os.getenv('CS_INFO_HOME_ENABLED') or '').lower() == 'true' or (conf.get('info_and_services') or {}).get('info_home_enabled'):
         globals.info_home_enabled = True
 
-    if conf['info_and_services']['services_home_enabled']:
+    if (os.getenv('CS_SERVICES_HOME_ENABLED') or '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
+
 
 def check_questions():
     with current_app.app_context():
