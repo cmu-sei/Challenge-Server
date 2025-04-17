@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -27,22 +27,46 @@ def read_config(app):
     with open(globals.yaml_path, 'r') as config_file:
         try:
             conf = yaml.safe_load(config_file)
-            logger.info(f"Config: {conf}")
         except yaml.YAMLError:
             logger.error("Error Reading YAML in config file")
             exit(1)
 
     globals.challenge_name = get_clean_env('CS_CHALLENGE_NAME') or conf.get('challenge_name') or ""
 
-    globals.app_host = get_clean_env('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
-    globals.app_port = get_clean_env('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
+    # Error on invalid IP address/port
+    host = (
+        get_clean_env('CS_APP_HOST') or
+        (conf.get('app') or {}).get('host') or
+        '0.0.0.0'
+    )
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        print(f"Error: Invalid IP address: {host}")
+        exit(1)
+    globals.app_host = host
+
+    port = (
+        get_clean_env('CS_APP_PORT') or
+        (conf.get('app') or {}).get('port') or
+        8888
+    )
+    try:
+        port = int(port)
+        if not (1 <= port <= 65535):
+            raise ValueError
+    except (ValueError, TypeError):
+        print(f"Error: Invalid TCP port: {port}")
+        exit(1)
+    globals.app_port = port
 
     # Error on Certificate/Key not found
     cert_path = (
         get_clean_env('CS_APP_CERT') or
         (conf.get('app') or {}).get('tls_cert')
     )
-    if not cert_path or not os.path.isfile(cert_path):
+    print(cert_path)
+    if cert_path and not os.path.isfile(cert_path):
         print(f"Error: Certificate file not found at path: {cert_path}")
         exit(1)
     globals.app_cert = cert_path
@@ -52,7 +76,7 @@ def read_config(app):
         (conf.get('app') or {}).get('tls_key')
     )
 
-    if not key_path or not os.path.isfile(key_path):
+    if key_path and not os.path.isfile(key_path):
         print(f"Error: Key file not found at path: {key_path}")
         sys.exit(1)
     globals.app_key = key_path
