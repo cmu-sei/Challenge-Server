@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.13
 
 WORKDIR /app
 
@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     net-tools \
     curl \
+    sshpass \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
