@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
 from app.extensions import logger, globals, db
+from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 
 ####### parse `config.yml` and assign values to globals object
@@ -31,15 +32,15 @@ def read_config(app):
             logger.error("Error Reading YAML in config file")
             exit(1)
 
-    globals.challenge_name = os.getenv('CS_CHALLENGE_NAME') or conf.get('challenge_name') or ""
+    globals.challenge_name = get_clean_env('CS_CHALLENGE_NAME') or conf.get('challenge_name') or ""
 
-    globals.app_host = os.getenv('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
-    globals.app_port = os.getenv('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
-    globals.app_cert = os.getenv('CS_APP_CERT') or (conf.get('app') or {}).get('tls_cert') or None
-    globals.app_key = os.getenv('CS_APP_KEY') or (conf.get('app') or {}).get('tls_key') or None
+    globals.app_host = get_clean_env('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
+    globals.app_port = get_clean_env('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
+    globals.app_cert = get_clean_env('CS_APP_CERT') or (conf.get('app') or {}).get('tls_cert') or None
+    globals.app_key = get_clean_env('CS_APP_KEY') or (conf.get('app') or {}).get('tls_key') or None
 
     # set grading enabled. False if not set in env vars or config file
-    globals.grading_enabled = (os.getenv('CS_GRADING_ENABLED') or '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
+    globals.grading_enabled = get_clean_env('CS_GRADING_ENABLED', '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
     logger.info(f"Grading enabled: {globals.grading_enabled}")
 
     ##########  Process Grading Config
@@ -54,7 +55,7 @@ def read_config(app):
             exit(1)
 
         globals.grading_parts = conf['grading']['parts']
-        globals.grader_post = (os.getenv('CS_GRADER_POST') or '').lower() == 'true' or conf['grading'].get('grader_post') or False
+        globals.grader_post = get_clean_env('CS_GRADER_POST', '').lower() == 'true' or conf['grading'].get('grader_post') or False
 
         # Initialize phases & add to DB
         with app.app_context():
@@ -111,28 +112,28 @@ def read_config(app):
                     logger.error(f"Unable to add question {key} to DB. Exception:{e}.\nExiting.")
                     exit(1)
 
-        manual_grading = (os.getenv('CS_MANUAL_GRADING') or '').lower() =='true' or conf['grading']['manual_grading'] or False
+        manual_grading = get_clean_env('CS_MANUAL_GRADING', '').lower() =='true' or conf['grading']['manual_grading'] or False
         if manual_grading:
         # set manual grading script. Error if script is not defined or not executable
             globals.grading_mode.append('manual')
-            globals.manual_grading_script = os.getenv('CS_MANUAL_GRADING_SCRIPT') or conf['grading'].get('manual_grading_script')
+            globals.manual_grading_script = get_clean_env('CS_MANUAL_GRADING_SCRIPT') or conf['grading'].get('manual_grading_script')
             if not globals.manual_grading_script:
                 logger.error(f"Manual Grading not script defined in env vars or config file.")
                 exit(1)
             logger.info(f"Manual Grading script: {globals.manual_grading_script}")
             try:
                 if not os.access(f"{globals.custom_script_dir}/{globals.manual_grading_script}", os.X_OK):
-                    logger.error(f"Manual grading script {globals.manual_grading_script} missing or is not executable")
+                    logger.error(f"Manual grading script {globals.custom_script_dir}/{globals.manual_grading_script} missing or is not executable")
                     exit(1)
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
                 exit(1)
 
-        if os.getenv('CS_CRON_GRADING') =='true' or conf['grading'].get('cron_grading'):
+        if get_clean_env('CS_CRON_GRADING') == 'true' or conf['grading'].get('cron_grading'):
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
-        rate_limit_env = os.getenv('CS_GRADING_RATE_LIMIT')
+        rate_limit_env = get_clean_env('CS_GRADING_RATE_LIMIT')
         rate_limit_conf = conf['grading'].get('rate_limit')
         rate_limit_seconds = int(rate_limit_env) if rate_limit_env is not None else (
             int(rate_limit_conf) if rate_limit_conf is not None else 0
@@ -141,28 +142,28 @@ def read_config(app):
         logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
 
         # set token location. "env" is default. Error if not recognized.
-        globals.token_location =  os.getenv('CS_TOKEN_LOCATION') or conf['grading'].get('token_location') or 'env'
+        globals.token_location =  get_clean_env('CS_TOKEN_LOCATION') or conf['grading'].get('token_location') or 'env'
         if globals.token_location not in globals.VALID_TOKEN_LOCATIONS:
             logger.error(f"Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
             exit(1)
         logger.info(f"Token location: {globals.token_location}")
 
         # set grading submission method. "display" is default. Error if not recognized
-        globals.submission_method = os.getenv('CS_SUBMISSION_METHOD') or conf['grading'].get('submission').get('method') or 'display'
+        globals.submission_method = get_clean_env('CS_SUBMISSION_METHOD') or conf['grading'].get('submission').get('method') or 'display'
         if globals.submission_method not in globals.VALID_SUBMISSION_METHODS:
             logger.error(f"Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
             exit(1)
         logger.info(f"Submission method: {globals.submission_method}")
 
         # additional configuration for grader_post
-        globals.grader_url = os.getenv('CS_GRADER_URL') or conf['grading']['submission'].get('grader_url')
+        globals.grader_url = get_clean_env('CS_GRADER_URL') or conf['grading']['submission'].get('grader_url')
         if globals.submission_method == 'grader_post' and not globals.grader_url:
             logger.error(f"grader_url is not defined in environment variable CS_GRADER_URL or config file. grader_url is required when submission method if grader_post.")
             exit(1)
         logger.info(f"Grader URL: {globals.grader_url}")
 
         # use environment variable for grader_url or fall back to the config file
-        globals.grader_key =  os.getenv('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
+        globals.grader_key =  get_clean_env('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
         if globals.submission_method == 'grader_post' and not globals.grader_key:
             logger.error(f"grader_key is not defined in environment variable CS_GRADER_KEY or config file. grader_key is required when submission method if grader_post.")
             exit(1)
@@ -246,14 +247,14 @@ def read_config(app):
                 exit(1)
 
     # set hosted files. False if not set in config file
-    globals.hosted_files_enabled = (os.getenv('CS_HOSTED_FILES') or '').lower() =='true' or (conf.get('hosted_files') or {}).get('enabled') or False
+    globals.hosted_files_enabled = get_clean_env('CS_HOSTED_FILES', '').lower() =='true' or (conf.get('hosted_files') or {}).get('enabled') or False
     logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
 
     # check status of `info` pages
-    if (os.getenv('CS_INFO_HOME_ENABLED') or '').lower() == 'true' or (conf.get('info_and_services') or {}).get('info_home_enabled'):
+    if get_clean_env('CS_INFO_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('info_home_enabled'):
         globals.info_home_enabled = True
 
-    if (os.getenv('CS_SERVICES_HOME_ENABLED') or '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
+    if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
 
 
@@ -544,7 +545,7 @@ def set_cron_vars(conf):
 
     # set cron grading script. Error if script is not defined or not executable
     globals.grading_mode.append('cron')
-    globals.cron_grading_script = os.getenv('CS_CRON_GRADING_SCRIPT') or conf['grading'].get('cron_grading_script')
+    globals.cron_grading_script = get_clean_env('CS_CRON_GRADING_SCRIPT') or conf['grading'].get('cron_grading_script')
     if not globals.cron_grading_script:
         logger.error(f"Cron grading not script defined.")
         exit(1)
@@ -557,16 +558,16 @@ def set_cron_vars(conf):
         logger.error(f"Got exception {e} while checking if grading script {globals.custom_script_dir}/{globals.cron_grading_script} is executable.")
         exit(1)
 
-    globals.cron_interval = int(os.getenv('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
+    globals.cron_interval = int(get_clean_env('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
     logger.info(f"cron_interval: {globals.cron_interval}")
 
-    globals.cron_limit = int(os.getenv('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
+    globals.cron_limit = int(get_clean_env('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
     logger.info(f"cron_limit: {globals.cron_limit}")
 
-    globals.cron_delay = int(os.getenv('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
+    globals.cron_delay = int(get_clean_env('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
     logger.info(f"cron_delay: {globals.cron_delay}")
 
-    globals.cron_at = os.getenv('CS_CRON_AT') or conf['grading'].get('cron_at') or None
+    globals.cron_at = get_clean_env('CS_CRON_AT') or conf['grading'].get('cron_at') or None
     logger.info(f"cron_at: {globals.cron_at}")
 
     # calculates the total delay by using the cron_at setting and adding it to the cron_delay
@@ -678,7 +679,7 @@ def read_token(part_name):
 
     # read tokens from env var
     if globals.token_location == 'env':
-        token = os.getenv(value)
+        token = get_clean_env(value)
         if not token:
             logger.error(f"Environment variable for token {value} is empty.")
             if globals.grader_post:

@@ -12,6 +12,7 @@
 import os
 from flask_apscheduler import APScheduler
 from datetime import timedelta, time
+from app.env import get_clean_env
 
 class Globals():
     def __init__(self):
@@ -33,7 +34,7 @@ class Globals():
         self.hosted_file_directory = f"{self.basedir}/hosted_files"
         self.yaml_path =  f"{self.basedir}/config.yml"
         # configuration globals
-        challenge_id = os.getenv('CS_ISOLATION_TAG') or ""
+        challenge_id = get_clean_env('CS_ISOLATION_TAG', '')
         self.challenge_id = challenge_id
         self.startup_workspace = False
         self.startup_scripts = None
@@ -84,9 +85,9 @@ class Globals():
         self.current_phase = None
         # other
         self.support_code = challenge_id[:8]
-        variant_index = os.getenv('CS_VARIANT')
+        variant_index = get_clean_env('CS_VARIANT')
         self.variant_index = "-1" if not variant_index or "##" in variant_index or len(variant_index) > 2 else variant_index
-        challenge_code = os.getenv('CS_CODE') or ""
+        challenge_code = get_clean_env('CS_CODE', '')
         self.challenge_code = "workspace" if not challenge_code or "##" in challenge_code else challenge_code
         self.fatal_error = False
         self.in_workspace = True if "workspace" in challenge_code else False
