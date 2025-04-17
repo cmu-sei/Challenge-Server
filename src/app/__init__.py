@@ -9,7 +9,7 @@
 #
 
 
-import threading, subprocess, signal, os, json, datetime
+import threading, subprocess, signal, os, json, datetime, sys
 from flask import Flask, url_for, redirect, flash, request
 
 #local imports
@@ -85,7 +85,7 @@ def create_app(config_class=Config):
                             db.session.commit()
                         except Exception as e:
                             logger.error(f"Exception trying increment submission counter. Exception: {str(e)}")
-                            exit(1)
+                            sys.exit(1)
     return app
 
 def run_startup_scripts():
