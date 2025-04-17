@@ -36,8 +36,27 @@ def read_config(app):
 
     globals.app_host = get_clean_env('CS_APP_HOST') or (conf.get('app') or {}).get('host') or '0.0.0.0'
     globals.app_port = get_clean_env('CS_APP_PORT') or (conf.get('app') or {}).get('port') or 8888
-    globals.app_cert = get_clean_env('CS_APP_CERT') or (conf.get('app') or {}).get('tls_cert') or None
-    globals.app_key = get_clean_env('CS_APP_KEY') or (conf.get('app') or {}).get('tls_key') or None
+
+    # Error on Certificate/Key not found
+    cert_path = (
+        get_clean_env('CS_APP_CERT') or
+        (conf.get('app') or {}).get('tls_cert')
+    )
+    if not cert_path or not os.path.isfile(cert_path):
+        print(f"Error: Certificate file not found at path: {cert_path}")
+        exit(1)
+    globals.app_cert = cert_path
+
+    key_path = (
+        get_clean_env('CS_APP_KEY') or
+        (conf.get('app') or {}).get('tls_key')
+    )
+
+    if not key_path or not os.path.isfile(key_path):
+        print(f"Error: Key file not found at path: {key_path}")
+        sys.exit(1)
+    globals.app_key = key_path
+
 
     # set grading enabled. False if not set in env vars or config file
     globals.grading_enabled = get_clean_env('CS_GRADING_ENABLED', '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
