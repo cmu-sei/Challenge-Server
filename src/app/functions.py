@@ -9,12 +9,13 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
 from app.extensions import logger, globals, db
+from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 
 ####### parse `config.yml` and assign values to globals object
@@ -22,42 +23,90 @@ def read_config(app):
     conf = None
     if not os.path.isfile(globals.yaml_path):
         logger.error("Could not find config.yml file.")
-        exit(1)
+        sys.exit(1)
     with open(globals.yaml_path, 'r') as config_file:
         try:
             conf = yaml.safe_load(config_file)
-            logger.info(f"Config: {conf}")
         except yaml.YAMLError:
             logger.error("Error Reading YAML in config file")
-            exit(1)
+            sys.exit(1)
 
-    globals.challenge_name = conf['challenge_name']
+    globals.challenge_name = get_clean_env('CS_CHALLENGE_NAME') or conf.get('challenge_name') or ""
 
-    # set grading enabled. False if not set in config file
-    globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
+    # Error on invalid IP address/port
+    host = (
+        get_clean_env('CS_APP_HOST') or
+        (conf.get('app') or {}).get('host') or
+        '0.0.0.0'
+    )
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        print(f"Error: Invalid IP address: {host}")
+        sys.exit(1)
+    globals.app_host = host
+
+    port = (
+        get_clean_env('CS_APP_PORT') or
+        (conf.get('app') or {}).get('port') or
+        8888
+    )
+    try:
+        port = int(port)
+        if not (1 <= port <= 65535):
+            raise ValueError
+    except (ValueError, TypeError):
+        print(f"Error: Invalid TCP port: {port}")
+        sys.exit(1)
+    globals.app_port = port
+
+    # Error on Certificate/Key not found
+    cert_path = (
+        get_clean_env('CS_APP_CERT') or
+        (conf.get('app') or {}).get('tls_cert')
+    )
+    print(cert_path)
+    if cert_path and not os.path.isfile(cert_path):
+        print(f"Error: Certificate file not found at path: {cert_path}")
+        sys.exit(1)
+    globals.app_cert = cert_path
+
+    key_path = (
+        get_clean_env('CS_APP_KEY') or
+        (conf.get('app') or {}).get('tls_key')
+    )
+
+    if key_path and not os.path.isfile(key_path):
+        print(f"Error: Key file not found at path: {key_path}")
+        sys.exit(1)
+    globals.app_key = key_path
+
+
+    # set grading enabled. False if not set in env vars or config file
+    globals.grading_enabled = get_clean_env('CS_GRADING_ENABLED', '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
     logger.info(f"Grading enabled: {globals.grading_enabled}")
 
     ##########  Process Grading Config
     if globals.grading_enabled:
         # set grading parts. Error if not defined
-        if 'parts' not in conf['grading']:
+        if not conf['grading'].get('parts'):
             logger.error(f"Grading parts is not defined in config file. Grading parts is required when grading is enabled.")
-            exit(1)
+            sys.exit(1)
 
-        if (not conf['grading']['manual_grading']) and (not conf['grading']['cron_grading']):
+        if (not conf['grading'].get('manual_grading')) and (not conf['grading'].get('cron_grading')):
             logger.error(f"At least one grading type must be enabled if grading is enabled.")
-            exit(1)
+            sys.exit(1)
 
         globals.grading_parts = conf['grading']['parts']
-        globals.grader_post = conf['grading']['grader_post']
+        globals.grader_post = get_clean_env('CS_GRADER_POST', '').lower() == 'true' or conf['grading'].get('grader_post') or False
 
         # Initialize phases & add to DB
         with app.app_context():
             if conf['grading'].get('phases'):
                 globals.phases_enabled = True
-                if ('phase_info' not in conf['grading'] or (len(conf['grading']['phase_info']) == 0)):
+                if ( not conf['grading'].get('phase_info') or (len(conf['grading']['phase_info']) == 0)):
                     logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
-                    exit(1)
+                    sys.exit(1)
                 globals.phases = conf['grading']['phase_info']
                 globals.phase_order = sorted(list(globals.phases.keys()),key=str.casefold)
                 if 'mini_challenge' in globals.phase_order:
@@ -84,7 +133,7 @@ def read_config(app):
                             db.session.commit()
                     except Exception as e:
                         logger.error(f"Unable to add phase {phase} to DB. Exception:{e}.\nExiting.")
-                        exit(1)
+                        sys.exit(1)
 
             ## Add questions to DB for tracking
             globals.question_order = sorted(list(globals.grading_parts.keys()),key=str.casefold)
@@ -104,29 +153,30 @@ def read_config(app):
                 except Exception as e:
                     logger.error(', '.join(globals.question_order))
                     logger.error(f"Unable to add question {key} to DB. Exception:{e}.\nExiting.")
-                    exit(1)
+                    sys.exit(1)
 
-        if conf['grading']['manual_grading']:
+        manual_grading = get_clean_env('CS_MANUAL_GRADING', '').lower() =='true' or conf['grading']['manual_grading'] or False
+        if manual_grading:
         # set manual grading script. Error if script is not defined or not executable
             globals.grading_mode.append('manual')
-            if 'manual_grading_script' not in conf['grading'] :
-                logger.error(f"Manual Grading not script defined in config file.")
-                exit(1)
-            globals.manual_grading_script = conf['grading']['manual_grading_script']
+            globals.manual_grading_script = get_clean_env('CS_MANUAL_GRADING_SCRIPT') or conf['grading'].get('manual_grading_script')
+            if not globals.manual_grading_script:
+                logger.error(f"Manual Grading not script defined in env vars or config file.")
+                sys.exit(1)
             logger.info(f"Manual Grading script: {globals.manual_grading_script}")
             try:
                 if not os.access(f"{globals.custom_script_dir}/{globals.manual_grading_script}", os.X_OK):
-                    logger.error(f"Manual grading script {globals.manual_grading_script} missing or is not executable")
-                    exit(1)
+                    logger.error(f"Manual grading script {globals.custom_script_dir}/{globals.manual_grading_script} missing or is not executable")
+                    sys.exit(1)
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if grading script {globals.manual_grading_script} is executable.")
-                exit(1)
+                sys.exit(1)
 
-        if conf['grading']['cron_grading']:
+        if get_clean_env('CS_CRON_GRADING') == 'true' or conf['grading'].get('cron_grading'):
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
-        rate_limit_env = os.getenv('CS_GRADING_RATE_LIMIT')
+        rate_limit_env = get_clean_env('CS_GRADING_RATE_LIMIT')
         rate_limit_conf = conf['grading'].get('rate_limit')
         rate_limit_seconds = int(rate_limit_env) if rate_limit_env is not None else (
             int(rate_limit_conf) if rate_limit_conf is not None else 0
@@ -135,31 +185,31 @@ def read_config(app):
         logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
 
         # set token location. "env" is default. Error if not recognized.
-        globals.token_location =  os.getenv('CS_TOKEN_LOCATION') or conf['grading'].get('token_location') or 'env'
+        globals.token_location =  get_clean_env('CS_TOKEN_LOCATION') or conf['grading'].get('token_location') or 'env'
         if globals.token_location not in globals.VALID_TOKEN_LOCATIONS:
             logger.error(f"Token Location: {conf['grading']['token_location']} is not recognized. Options are: {globals.VALID_TOKEN_LOCATIONS}")
-            exit(1)
+            sys.exit(1)
         logger.info(f"Token location: {globals.token_location}")
 
         # set grading submission method. "display" is default. Error if not recognized
-        globals.submission_method = os.getenv('CS_SUBMISSION_METHOD') or conf['grading'].get('submission').get('method') or 'display'
+        globals.submission_method = get_clean_env('CS_SUBMISSION_METHOD') or conf['grading'].get('submission').get('method') or 'display'
         if globals.submission_method not in globals.VALID_SUBMISSION_METHODS:
             logger.error(f"Submission Method: {conf['grading']['submission']['method']} is not recognized. Options are: {globals.VALID_SUBMISSION_METHODS}")
-            exit(1)
+            sys.exit(1)
         logger.info(f"Submission method: {globals.submission_method}")
 
         # additional configuration for grader_post
-        globals.grader_url = os.getenv('CS_GRADER_URL') or conf['grading']['submission'].get('grader_url')
+        globals.grader_url = get_clean_env('CS_GRADER_URL') or conf['grading']['submission'].get('grader_url')
         if globals.submission_method == 'grader_post' and not globals.grader_url:
             logger.error(f"grader_url is not defined in environment variable CS_GRADER_URL or config file. grader_url is required when submission method if grader_post.")
-            exit(1)
+            sys.exit(1)
         logger.info(f"Grader URL: {globals.grader_url}")
 
         # use environment variable for grader_url or fall back to the config file
-        globals.grader_key =  os.getenv('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
+        globals.grader_key =  get_clean_env('CS_GRADER_KEY') or conf['grading']['submission'].get('grader_key')
         if globals.submission_method == 'grader_post' and not globals.grader_key:
             logger.error(f"grader_key is not defined in environment variable CS_GRADER_KEY or config file. grader_key is required when submission method if grader_post.")
-            exit(1)
+            sys.exit(1)
         logger.info(f"Grader Key: {globals.grader_key}")
 
     # configure required services. Empty array if setting is not in config
@@ -169,7 +219,7 @@ def read_config(app):
         # ensure host is defined in required services
         if 'host' not in service:
             logger.error(f"Missing host definition in required service: {service}")
-            exit(1)
+            sys.exit(1)
         # ensure type is defined in required services. If not defined, default to ping type.
         if 'type' not in service:
             logger.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
@@ -177,11 +227,11 @@ def read_config(app):
         # ensure defined type is valid
         if service['type'] not in globals.VALID_SERVICE_TYPES:
             logger.error(f"Invalid required service type in: {service}. Valid types are {globals.VALID_SERVICE_TYPES}.")
-            exit(1)
+            sys.exit(1)
         # ensure port is defined for socket type
         if service['type'] == 'socket' and 'port' not in service:
             logger.error(f"Missing port definition in required service: {service}. Port definition is required with socket type")
-            exit(1)
+            sys.exit(1)
         # ensure web options are set/defaulted
         if service['type'] == 'web':
             if 'port' not in service:
@@ -196,7 +246,7 @@ def read_config(app):
             service['block_startup_scripts'] = False
         if not isinstance(service['block_startup_scripts'], bool):
             logger.error(f"Invalid type for block_startup_scripts. Must be true/false.")
-            exit(1)
+            sys.exit(1)
         # add to blocking services if needed
         if service['block_startup_scripts']:
             globals.blocking_services.append(service)
@@ -206,7 +256,7 @@ def read_config(app):
     globals.blocking_threadpool = ThreadPoolExecutor(thread_name_prefix="BlockingServices")
 
     # Check for service logger config in yml & assign if enabled
-    services_list = conf['services_to_log'] if 'services_to_log' in conf else []
+    services_list = conf.get('services_to_log')
     if not services_list:
         globals.services_list = services_list
         logger.info("No services configured for logging.")
@@ -214,40 +264,42 @@ def read_config(app):
         for index,entry in enumerate(services_list):
             if ('host' not in entry) or ('password' not in entry) or ('service' not in entry):
                 logger.error("services_to_log missing data in yaml, please ensure all required parts are entered. (host, password, or service data).Exiting.")
-                exit(1)
+                sys.exit(1)
             if ('user' not in entry) or (entry['user'] == None):
                 services_list[index]['user'] = 'user'
         globals.services_list = services_list
 
     # configure startup scripts. Empty array if setting is not in config
-    if 'startup' in conf:
-        globals.startup_scripts = conf['startup']['scripts'] if 'scripts' in conf['startup'] else []
+    startup = conf.get('startup')
+    if startup:
+        globals.startup_scripts = startup.get('scripts') or []
         logger.info(f"Startup scripts: {globals.startup_scripts}")
-        globals.startup_workspace = conf['startup']['runInWorkspace'] if 'runInWorkspace' in conf['startup'] else False
+        globals.startup_workspace = startup.get('runInWorkspace') or False
         logger.info(f"Run Startup Scripts in Workspace: {globals.startup_workspace}")
         # check to make sure each startup script is executable
         for startup_script in globals.startup_scripts:
             try:
                 if not os.path.exists(f"{globals.custom_script_dir}/{startup_script}"):
                     logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} does not exist.")
-                    exit(1)
+                    sys.exit(1)
                 if not os.access(f"{globals.custom_script_dir}/{startup_script}", os.X_OK):
                     logger.error(f"Startup script {globals.custom_script_dir}/{startup_script} is not executable")
-                    exit(1)
+                    sys.exit(1)
             except Exception as e:
                 logger.error(f"Got exception {e} while checking if startup script {globals.custom_script_dir}/{startup_script} exists and is executable.")
-                exit(1)
+                sys.exit(1)
 
     # set hosted files. False if not set in config file
-    globals.hosted_files_enabled = conf.get('hosted_files').get('enabled') or False
+    globals.hosted_files_enabled = get_clean_env('CS_HOSTED_FILES', '').lower() =='true' or (conf.get('hosted_files') or {}).get('enabled') or False
     logger.info(f"Hosted files enabled: {globals.hosted_files_enabled}")
 
     # check status of `info` pages
-    if conf['info_and_services']['info_home_enabled']:
+    if get_clean_env('CS_INFO_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('info_home_enabled'):
         globals.info_home_enabled = True
 
-    if conf['info_and_services']['services_home_enabled']:
+    if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
+
 
 def check_questions():
     with current_app.app_context():
@@ -290,7 +342,7 @@ def update_db(type_q,label=None, val=None):
                 cur_question = QuestionTracking.query.filter_by(label=label).first()
                 if cur_question == None:
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
-                    exit(1)
+                    sys.exit(1)
                 if (val != None) and ('--' in val):
                     cur_question.response = val.split('--',1)[1]
                 if ('--' not in val) and (cur_question.response == ''):
@@ -301,14 +353,14 @@ def update_db(type_q,label=None, val=None):
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")
-                exit(1)
+                sys.exit(1)
 
         else:
             for p in globals.phase_order:
                 phase = PhaseTracking.query.filter_by(label=p).first()
                 if phase == None:
                     logger.error("No entry found in DB while attempting to find current phase during DB update. Exiting")
-                    exit(1)
+                    sys.exit(1)
                 if phase.solved == False:
                     q_list = phase.tasks.split(',')
                     num_q = len(q_list)
@@ -316,7 +368,7 @@ def update_db(type_q,label=None, val=None):
                         cur_q = QuestionTracking.query.filter_by(label=q).first()
                         if cur_q == None:
                             logger.error("No entry found in DB while attempting to update phase DB. Exiting")
-                            exit(1)
+                            sys.exit(1)
                         if cur_q.solved == True:
                             num_q -= 1
                     if num_q == 0:
@@ -423,7 +475,7 @@ def check_db(label):
         cur_question = QuestionTracking.query.filter_by(label=label).first()
         if cur_question == None:
             logger.error("Check Database: No entry found in DB while attempting to mark question completed. Exiting")
-            exit(1)
+            sys.exit(1)
         return cur_question.solved
 
 
@@ -536,29 +588,29 @@ def set_cron_vars(conf):
 
     # set cron grading script. Error if script is not defined or not executable
     globals.grading_mode.append('cron')
-    globals.cron_grading_script = os.getenv('CS_CRON_GRADING_SCRIPT') or conf['grading'].get('cron_grading_script')
+    globals.cron_grading_script = get_clean_env('CS_CRON_GRADING_SCRIPT') or conf['grading'].get('cron_grading_script')
     if not globals.cron_grading_script:
         logger.error(f"Cron grading not script defined.")
-        exit(1)
+        sys.exit(1)
     logger.info(f"Cron grading script: {globals.custom_script_dir}/{globals.cron_grading_script}")
     try:
         if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
             logger.error(f"Cron grading script {globals.custom_script_dir}/{globals.cron_grading_script} is not executable")
-            exit(1)
+            sys.exit(1)
     except Exception as e:
         logger.error(f"Got exception {e} while checking if grading script {globals.custom_script_dir}/{globals.cron_grading_script} is executable.")
-        exit(1)
+        sys.exit(1)
 
-    globals.cron_interval = int(os.getenv('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
+    globals.cron_interval = int(get_clean_env('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
     logger.info(f"cron_interval: {globals.cron_interval}")
 
-    globals.cron_limit = int(os.getenv('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
+    globals.cron_limit = int(get_clean_env('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
     logger.info(f"cron_limit: {globals.cron_limit}")
 
-    globals.cron_delay = int(os.getenv('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
+    globals.cron_delay = int(get_clean_env('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
     logger.info(f"cron_delay: {globals.cron_delay}")
 
-    globals.cron_at = os.getenv('CS_CRON_AT') or conf['grading'].get('cron_at') or None
+    globals.cron_at = get_clean_env('CS_CRON_AT') or conf['grading'].get('cron_at') or None
     logger.info(f"cron_at: {globals.cron_at}")
 
     # calculates the total delay by using the cron_at setting and adding it to the cron_delay
@@ -670,7 +722,7 @@ def read_token(part_name):
 
     # read tokens from env var
     if globals.token_location == 'env':
-        token = os.getenv(value)
+        token = get_clean_env(value)
         if not token:
             logger.error(f"Environment variable for token {value} is empty.")
             if globals.grader_post:

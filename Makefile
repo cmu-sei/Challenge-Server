@@ -13,14 +13,14 @@ REQUIREMENTS := requirements.txt
 APP_DIR := ./src
 APP := app.py
 
-.PHONY: all venv run update freeze clean
+.PHONY: all venv run update freeze clean test docker-build docker-run docker-compose docker-all
 
 all: venv run
 
 venv:
 	sudo $(PYTHON) -m venv $(VENV_DIR)
-	sudo $(VENV_DIR)/bin/pip install --upgrade pip
-	sudo $(VENV_DIR)/bin/pip install -r $(REQUIREMENTS)
+	sudo $(VENV_DIR)/bin/pip install --no-cache-dir --upgrade pip
+	sudo $(VENV_DIR)/bin/pip install --no-cache-dir -r $(REQUIREMENTS)
 
 run:
 	rm -f $(APP_DIR)/challenge.db && cd $(APP_DIR) && sudo ../$(VENV_DIR)/bin/python $(APP)
@@ -33,6 +33,25 @@ update:
 
 freeze:
 	$(VENV_DIR)/bin/pip freeze | cut -d '=' -f 1 > $(REQUIREMENTS)
+
+docker-build:
+	docker build -t challenge-server .
+
+docker-run:
+	docker run -p 8888:8888 challenge-server
+
+docker-test:
+	docker run -p 8888:8888 \
+		-e token1="MyToken1" \
+		-e token2="MyToken2" \
+		-e token3="MyToken3" \
+		-e token4="MyToken4" \
+		challenge-server
+
+docker-compose:
+	docker-compose run --build --rm --service-ports challenge-server
+
+docker-all: docker-build docker-run
 
 clean:
 	sudo rm -rf $(VENV_DIR)

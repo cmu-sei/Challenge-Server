@@ -47,4 +47,4 @@ if __name__ == '__main__':
             print(key, ' : ', value)
     else:
         print(f"Passed phase ({passed_phase}) does not exist", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
