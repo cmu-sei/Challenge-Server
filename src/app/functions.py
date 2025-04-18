@@ -14,7 +14,7 @@ from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
-from app.extensions import logger, globals, db
+from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 
@@ -505,6 +505,7 @@ def done_grading(future: Future):
     '''
     Callback function for do_grade.
     Checks to see if the results need to be PUT to the grading server
+    Saves solves to the database
     '''
     results, tokens = future.result()
     logger.info(f"Server sees {globals.manual_grading_script} results as: {results}")
@@ -513,6 +514,9 @@ def done_grading(future: Future):
     # save results and tokens so they can be accessed globally
     globals.manual_results = results
     globals.tokens['manual'] = tokens
+
+    # record solves to the database
+    globals.scheduler.add_job(id="Record_Solves",func=record_solves)
 
     if globals.grader_post:
         post_submission(tokens)
@@ -699,6 +703,8 @@ def run_cron_thread():
         if globals.grader_post:
             post_submission(tokens)
         logger.info(f"Results of cron grading attempt number {cron_attempts}: {globals.cron_results}")
+        # record solves to the database
+        globals.scheduler.add_job(id="Record_Solves",func=record_solves)
         sleep(globals.cron_interval)
     logger.info(f"The number of grading attempts ({limit}) has been exhausted. No more grading will take place.")
 
@@ -822,22 +828,23 @@ def get_logs(service):
 
 
 def record_solves():
-    with globals.scheduler.app.app_context():
-        objs = {
-            "Question Solved": QuestionTracking.query.all(),
-            "Phase Solved":PhaseTracking.query.all()
-        }
-        for k,v in objs.items():
-            for q in v:
-                if q.solved == True:
-                    cur_data = {
-                        "challenge":globals.challenge_name,
-                        "support_code":globals.support_code,
-                        "event_type":k,
-                        k: q.label,
-                        "solved_at": q.time_solved,
-                        "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    }
-                    new_event = EventTracker(data=json.dumps(cur_data))
-                    db.session.add(new_event)
-                    db.session.commit()
+    with record_solves_lock:
+        with globals.scheduler.app.app_context():
+            objs = {
+                "Question Solved": QuestionTracking.query.all(),
+                "Phase Solved":PhaseTracking.query.all()
+            }
+            for k,v in objs.items():
+                for q in v:
+                    if q.solved == True:
+                        cur_data = {
+                            "challenge":globals.challenge_name,
+                            "support_code":globals.support_code,
+                            "event_type":k,
+                            k: q.label,
+                            "solved_at": q.time_solved,
+                            "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        new_event = EventTracker(data=json.dumps(cur_data))
+                        db.session.add(new_event)
+            db.session.commit()
