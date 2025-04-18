@@ -81,6 +81,7 @@ def read_config(app):
         sys.exit(1)
     globals.app_key = key_path
 
+    globals.port_checker = get_clean_env('CS_PORT_CHECKER', '').lower() == 'true'or conf.get('port_checker') or False
 
     # set grading enabled. False if not set in env vars or config file
     globals.grading_enabled = get_clean_env('CS_GRADING_ENABLED', '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False

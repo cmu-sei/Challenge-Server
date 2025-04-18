@@ -9,6 +9,11 @@ This document explains each setting in the [config.yml](./config.yml).
 - `tls_cert` - Certificate to use for HTTPS (defaults to None)
 - `tls_key` - Private key for the HTTPS cert above (defaults to None)S
 
+## port_checker
+
+- When set to true, this enables a feature that will use the `ss` command to log all open ports on the system every 30 seconds.
+- Defaults to false.
+
 ## challenge_name
 
 - Name of the challenge
