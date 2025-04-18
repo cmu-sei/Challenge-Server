@@ -19,7 +19,7 @@ def grade(submission=None):
     results = dict()
 
     # GradingCheck1
-    if submission['GradingCheck1'] == 'test1':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
+    if submission['GradingCheck1'] == 'b':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
         results['GradingCheck1'] = "Success"
     else:
         results['GradingCheck1'] = "Failure"

@@ -17,7 +17,7 @@ DM24-0645
 {% block content %}
 
 <div class="welcome-message">
-    <h1><u>{{g.globs.challenge_name}}</u></h1>
+    <h1>{{g.globs.challenge_name}}</h1>
     <form>
         <fieldset style="width:70%;">
             <table class="res-table">
@@ -43,13 +43,6 @@ DM24-0645
                         as you progress through the challenge.</td>
                 </tr>
                 {% endif %}
-                {% if g.globs.hosted_files_enabled %}
-                <tr>
-                    <td class="home_table_page">Hosted Files</td>
-                    <td class="home_table_func">Files that can be downloaded.</ul>
-                    </td>
-                </tr>
-                {% endif %}
                 {% if g.globs.grading_enabled %}
                 <tr>
                     <td class="home_table_page">Results</td>
@@ -62,6 +55,13 @@ DM24-0645
                     <td class="home_table_page">Services</td>
                     <td class="home_table_func">Status of network services.
                         This page can be useful for troubleshooting.</td>
+                </tr>
+                {% endif %}
+                {% if g.globs.hosted_files_enabled %}
+                <tr>
+                    <td class="home_table_page">Hosted Files</td>
+                    <td class="home_table_func">Download Files</ul>
+                    </td>
                 </tr>
                 {% endif %}
             </table>

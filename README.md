@@ -4,15 +4,19 @@ This is the **Challenge Server** - designed for hands-on cybersecurity challenge
 
 The idea is to have a centralized server that developers can use for startup/grading scripts and users can go to for grading and viewing results inside challenges.
 
-_Disclaimer: The Challenge Server was developed with under the assumption that it would be used alongside [TopoMojo](https://github.com/cmu-sei/topomojo) and VMware. Some phrasing here may use TopoMojo and VMware terminology. If using this service outside of TopoMojo and VMware, some adjustments may be required._
-
 ## Using the Challenge Server
 
-The Challenge Server primarily consists of a web server written in Python. At startup, the server will read the config file and apply those settings. Then, the server will run startup scripts, host files for download, supply ways for users to ask for grading, and more!
+At startup, the Challenge Server will read the config file and apply settings. Then, the server will run startup scripts, host files for download, supply ways for users to ask for grading, and more!
 
-Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. The config file is heavily commented to help figure out which settings you may need.
+Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. Check the [supplemental README.md](./src/README.md) for details on configuration options.
 
-In most cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
+### Using HTTPS
+
+To run the Challenge Server with HTTPS, provide the path to a TLS certificate and private key via the [config.yml](./src/config.yml) or the `CS_APP_CERT` and `CS_APP_KEY` environment variables.
+
+### Running the Challenge Server
+
+In some cases, it makes sense to run the Challenge Server code as a `systemd` service at boot. An example systemd unit is [here](./challengeserver.service). If you're using this type of configuration, you will need to restart the systemd service before changes to the config file are read by the service. Use the following command to restart the service after making configuration changes:
 
 ```bash
 sudo systemctl restart challengeserver.service
@@ -38,16 +42,12 @@ The above command will put you in a `more`-style view of the systemd logs for th
 sudo journalctl -e -u challengeserver.service
 ```
 
-## Required Guestinfo Variables
+## Required Environment Variables
 
-The Challenge Server relies on VMware guestinfo variables to gather some information.
+In order to operate as intended, the Challenge Server requires 2 environment variables.
 
-In order to operate as intended, the Challenge Server requires 2 guestinfo variables.
-
-1. `code` - This guestinfo variable should be a string that contains a "challenge code" or a "slug" that identified this challenge. Example: `c00`. If this guestinfo variable is not set, the Challenge Server will always assume that it is running in a workspace.
-1. `variant` - This guestinfo variable should be a string that contains which TopoMojo variant is deployed. Example: `2`. If this guestinfo variable is not set, the Challenge Server will set the variant to a default of `-1`
-
-The Challenge Server can also read "answer tokens" from Guestinfo if configured to do so.
+1. `CS_CODE` - This environment variable should be a string that contains a "challenge code" or a "slug" that identified this challenge. Example: `c00`. If this environment variable is not set, the Challenge Server will always assume that it is running in a workspace.
+1. `CS_VARIANT` - This environment variable should be a string that contains which TopoMojo variant is deployed. Example: `2`. If this environment variable is not set, the Challenge Server will set the variant to a default of `-1`
 
 ## Monitoring Required Services
 
@@ -81,7 +81,11 @@ The challenge developer (you) can write a grading script that the server execute
 - When a certain amount of time has passed
 - When the user enters text into the website
 
-The Challenge Server will take care of reading submission tokens from guestinfo variables or a file on the Challenge Server machine (depending on the configuration) and displaying token values to the user.
+The Challenge Server will read tokens from environment variables, VMware guestinfo variables or a file and displaying/submitting the tokens depending on submission configuration.
+
+### Submission
+
+The Challenge Server can display tokens to users for copy/paste submissions on their own.
 
 The Challenge Server can also POST values to the [Gameboard application](https://github.com/cmu-sei/gameboard) and submit answers on a user's behalf.
 
