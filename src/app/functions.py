@@ -8,10 +8,8 @@
 # DM24-0645
 #
 
-import yaml, os, subprocess, requests, json, sys, uuid, base64, copy
-from datetime import datetime, timedelta, timezone
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -308,6 +306,7 @@ def read_config(app):
     if globals.xapi_enabled:
         globals.xapi_variables_location = conf['xapi'].get('variables_location', 'guestinfo')
         logger.info(f"xAPI variable source: {globals.xapi_variables_location}")
+        globals.xapi_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         # Now load the xAPI variables
         load_xapi_variables()
@@ -322,7 +321,7 @@ def check_questions():
                 solved_tracker+= 1
         if solved_tracker == expected:
             globals.challenge_completed == True
-            globals.challenge_completion_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
@@ -343,7 +342,7 @@ def get_current_phase():
                 globals.current_phase = cur_phase.label
                 return cur_phase.label
         globals.challenge_completed == True
-        globals.challenge_completion_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         return "completed"
 
 
@@ -362,7 +361,7 @@ def update_db(type_q,label=None, val=None):
                 was_solved = cur_question.solved
                 if "success" in val.lower():
                     cur_question.solved = True
-                    cur_question.time_solved = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     # xAPI: If newly solved, send question-level 'passed' statement
                     if not was_solved:
                         part_info = globals.grading_parts.get(label, {})
@@ -399,7 +398,7 @@ def update_db(type_q,label=None, val=None):
                             num_q -= 1
                     if num_q == 0:
                         phase.solved = True
-                        phase.time_solved = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        phase.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         db.session.commit()
                     else:
                         globals.current_phase = phase.label
@@ -475,7 +474,7 @@ def do_grade(args):
             "support_code":globals.support_code,
             "event_type":"Grading Result",
             "output":results,
-            "recorded_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         new_event = EventTracker(data=json.dumps(event_data))
         db.session.add(new_event)
@@ -643,9 +642,9 @@ def set_cron_vars(conf):
     if globals.cron_at is not None:
         globals.cron_type = "at"
         time = globals.cron_at.split(':')
-        current_time = datetime.now()
+        current_time = datetime.datetime.now()
 
-        start_time = datetime(current_time.year, current_time.month, current_time.day, hour=int(time[0]), minute=int(time[1]))
+        start_time = datetime.datetime(current_time.year, current_time.month, current_time.day, hour=int(time[0]), minute=int(time[1]))
         logger.info(f"Cron style grading should begin at {start_time}")
 
         time_diff = (start_time - current_time).total_seconds()
@@ -717,7 +716,7 @@ def run_cron_thread():
     while globals.cron_limit != 0:
         cron_attempts += 1
         globals.cron_limit = globals.cron_limit - 1
-        globals.cron_submit_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+        globals.cron_submit_time = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
         logger.info(f"Starting cron grading attempt number {cron_attempts}")
         globals.cron_results, tokens = do_cron_grade()
         globals.tokens['cron'] = tokens
@@ -786,7 +785,7 @@ def read_token(part_name):
 
 
 def get_logs(service):
-    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     while True:
         sleep(10)
         error = ''
@@ -843,7 +842,7 @@ def get_logs(service):
                 logger.info(f"SERVICE_LOGGER: {line}")
             else:
                 logger.error("SERVICE_LOGGER: "+ error + line)
-        log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def record_solves():
@@ -861,7 +860,7 @@ def record_solves():
                         "event_type":k,
                         k: q.label,
                         "solved_at": q.time_solved,
-                        "recorded_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
                     new_event = EventTracker(data=json.dumps(cur_data))
                     db.session.add(new_event)
@@ -875,17 +874,17 @@ def load_xapi_variables():
     """
     Loads xAPI values into globals
     """
-    globals.xapi_endpoint     = read_xapi_value('cmi5_endpoint')
-    globals.xapi_registration = read_xapi_value('cmi5_registration')
-    globals.xapi_fetch        = read_xapi_value('cmi5_fetch')
-    globals.xapi_session_id   = read_xapi_value('cmi5_sessionId')
-    globals.xapi_activity_id  = read_xapi_value('cmi5_activityId')
-    globals.xapi_auth_token   = read_xapi_value('cmi5_auth')
+    globals.xapi_endpoint     = read_xapi_value('CS_CMI5_ENDPOINT')
+    globals.xapi_registration = read_xapi_value('CS_CMI5_REGISTRATION')
+    globals.xapi_fetch        = read_xapi_value('CS_CMI5_FETCH')
+    globals.xapi_session_id   = read_xapi_value('CS_CMI5_SESSIONID')
+    globals.xapi_activity_id  = read_xapi_value('CS_CMI5_ACTIVITYID')
+    globals.xapi_auth_token   = read_xapi_value('CS_CMI5_AUTH')
 
     # JSON values
-    globals.xapi_actor = read_xapi_value('cmi5_actor', decode_json=True) or {}
+    globals.xapi_actor = read_xapi_value('CS_CMI5_ACTOR', decode_json=True) or {}
     
-    context = read_xapi_value('cmi5_context', decode_json=True) or {}
+    context = read_xapi_value('CS_CMI5_CONTEXT', decode_json=True) or {}
     context["registration"] = globals.xapi_registration
     globals.xapi_context = context
 
@@ -913,13 +912,6 @@ def read_xapi_value(key, decode_json=False):
                 logger.warning(f"[guestinfo] No value found for guestinfo.{key}")
         except Exception as e:
             logger.warning(f"[guestinfo] Failed to read guestinfo.{key}: {e}")
-
-    elif location == "qemu":
-        try:
-            with open(f"/sys/firmware/qemu_fw_cfg/by_name/opt/guestinfo.{key}/raw", "r") as f:
-                value = f.read().strip()
-        except Exception as e:
-            logger.warning(f"[qemu] Failed to read guestinfo.{key}: {e}")
 
     if not value:
         logger.warning(f"[xAPI] No value found for key: {key} using method: {location}")
@@ -968,13 +960,13 @@ def send_completed_xapi():
     if not globals.xapi_enabled:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
     statement_id = str(uuid.uuid4())
     au_id = f"{globals.xapi_activity_id}"
 
     session_start = globals.xapi_au_start_time
     if isinstance(session_start, str):
-        session_start = datetime.fromisoformat(session_start)
+        session_start = datetime.datetime.fromisoformat(session_start)
 
     duration_seconds = (now - session_start).total_seconds()
 
@@ -1015,13 +1007,13 @@ def send_terminated_xapi():
     if not globals.xapi_enabled:
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
     statement_id = str(uuid.uuid4())
     au_id = f"{globals.xapi_activity_id}"
 
     session_start = globals.xapi_au_start_time
     if isinstance(session_start, str):
-        session_start = datetime.fromisoformat(session_start)
+        session_start = datetime.datetime.fromisoformat(session_start)
 
     duration_seconds = (now - session_start).total_seconds()
 
@@ -1059,7 +1051,7 @@ def send_question_statement(question_label: str, question_text: str, success: bo
         return
 
     statement_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
     au_id = f"{globals.xapi_activity_id}"
 
     statement = {
