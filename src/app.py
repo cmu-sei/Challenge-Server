@@ -9,7 +9,7 @@
 #
 
 
-import threading, os
+import threading, os, sys
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     '''
     if os.geteuid() != 0:
         logger.error("Must be run by root.")
-        exit(1)
+        sys.exit(1)
 
     CORS(app)
     globals.executor = Executor(app)
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     successes, errors = run_startup_scripts()
     if errors:
         logger.error(f"Startup scripts exited with error(s): {list(errors.keys())}")
-        exit(1)
+        sys.exit(1)
     if successes:
         logger.info(f"All startup scripts exited normally: {list(successes.keys())}")
 
