@@ -112,9 +112,6 @@ grading:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-xapi:
-  enabled: true
-  endpoint: ""
-  username: ""
-  password: ""
-  actor_name: ""
+# xapi:
+#   enabled: false
+#   variables_location: env

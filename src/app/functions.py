@@ -8,26 +8,15 @@
 # DM24-0645
 #
 
+import yaml, os, subprocess, requests, json, sys, uuid, base64, copy
+from datetime import datetime, timedelta, timezone
 
-import yaml, os, subprocess, requests, datetime, json, sys
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
 from app.extensions import logger, globals, db
 from app.models import QuestionTracking,PhaseTracking, EventTracker
-from tincan import (
-    RemoteLRS,
-    Statement,
-    Agent,
-    Verb,
-    Activity,
-    ActivityDefinition,
-    LanguageMap,
-    Result,
-    Context,
-    ContextActivities
-)
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -44,17 +33,8 @@ def read_config(app):
             exit(1)
 
     globals.challenge_name = conf['challenge_name']
-    globals.challenge_name_uri = ''.join(filter(str.isalnum, conf['challenge_name']))
+    globals.xapi_au_start_time = datetime.now(timezone.utc)
 
-    xapi_conf = conf.get('xapi', {})
-    globals.xapi_enabled = xapi_conf.get('enabled', False)
-    globals.xapi_endpoint = xapi_conf.get('endpoint', "")
-    globals.xapi_username = xapi_conf.get('username', "")
-    globals.xapi_password = xapi_conf.get('password', "")
-    globals.xapi_actor_name = xapi_conf.get('actor_name', "EmptyUser")
-
-    logger.info(f"xAPI Enabled: {globals.xapi_enabled}")
-    logger.info(f"xAPI Endpoint: {globals.xapi_endpoint}")
 
     # set grading enabled. False if not set in config file
     globals.grading_enabled = conf['grading']['enabled'] if 'grading' in conf and 'enabled' in conf['grading'] else False
@@ -164,7 +144,8 @@ def read_config(app):
             set_cron_vars(conf)
 
         # set grading rate limit. 0 if not defined
-        globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
+        globals.grading_rateLimit = timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else timedelta(seconds=0)
+        #globals.grading_rateLimit = datetime.timedelta(seconds=conf['grading']['rate_limit']) if 'rate_limit' in conf['grading'] else datetime.timedelta(seconds=0)
         logger.info(f"Grading Rate limit: {globals.grading_rateLimit.total_seconds().__int__()} seconds")
 
         # set token location. "guestinfo" is default. Error if not recognized.
@@ -286,6 +267,16 @@ def read_config(app):
     if conf['info_and_services']['services_home_enabled']:
         globals.services_home_enabled = True
 
+    globals.xapi_enabled = conf['xapi']['enabled'] if 'xapi' in conf and 'enabled' in conf['xapi'] else False
+    logger.info(f"xAPI enabled: {globals.xapi_enabled}")
+
+    if globals.xapi_enabled:
+        globals.xapi_variables_location = conf['xapi'].get('variables_location', 'guestinfo')
+        logger.info(f"xAPI variable source: {globals.xapi_variables_location}")
+        
+        # Now load the xAPI variables
+        load_xapi_variables()
+
 def check_questions():
     with current_app.app_context():
         solved_tracker = 0
@@ -296,11 +287,11 @@ def check_questions():
                 solved_tracker+= 1
         if solved_tracker == expected:
             globals.challenge_completed == True
-            globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            globals.challenge_completion_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
-            send_completed_xapi_tincan()
+            send_completed_xapi()
 
 
 def get_current_phase():
@@ -317,7 +308,7 @@ def get_current_phase():
                 globals.current_phase = cur_phase.label
                 return cur_phase.label
         globals.challenge_completed == True
-        globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        globals.challenge_completion_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         return "completed"
 
 
@@ -336,7 +327,7 @@ def update_db(type_q,label=None, val=None):
                 was_solved = cur_question.solved
                 if "success" in val.lower():
                     cur_question.solved = True
-                    cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    cur_question.time_solved = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     # xAPI: If newly solved, send question-level 'passed' statement
                     if not was_solved:
                         part_info = globals.grading_parts.get(label, {})
@@ -373,7 +364,7 @@ def update_db(type_q,label=None, val=None):
                             num_q -= 1
                     if num_q == 0:
                         phase.solved = True
-                        phase.time_solved =datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        phase.time_solved = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         db.session.commit()
                     else:
                         globals.current_phase = phase.label
@@ -449,7 +440,7 @@ def do_grade(args):
             "support_code":globals.support_code,
             "event_type":"Grading Result",
             "output":results,
-            "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            "recorded_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         new_event = EventTracker(data=json.dumps(event_data))
         db.session.add(new_event)
@@ -619,9 +610,9 @@ def set_cron_vars(conf):
     if globals.cron_at is not None:
         globals.cron_type = "at"
         time = globals.cron_at.split(':')
-        current_time = datetime.datetime.now()
+        current_time = datetime.now()
 
-        start_time = datetime.datetime(current_time.year, current_time.month, current_time.day, hour=int(time[0]), minute=int(time[1]))
+        start_time = datetime(current_time.year, current_time.month, current_time.day, hour=int(time[0]), minute=int(time[1]))
         logger.info(f"Cron style grading should begin at {start_time}")
 
         time_diff = (start_time - current_time).total_seconds()
@@ -693,7 +684,7 @@ def run_cron_thread():
     while globals.cron_limit != 0:
         cron_attempts += 1
         globals.cron_limit = globals.cron_limit - 1
-        globals.cron_submit_time = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+        globals.cron_submit_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
         logger.info(f"Starting cron grading attempt number {cron_attempts}")
         globals.cron_results, tokens = do_cron_grade()
         globals.tokens['cron'] = tokens
@@ -751,7 +742,7 @@ def read_token(part_name):
 
 
 def get_logs(service):
-    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     while True:
         sleep(10)
         error = ''
@@ -808,7 +799,7 @@ def get_logs(service):
                 logger.info(f"SERVICE_LOGGER: {line}")
             else:
                 logger.error("SERVICE_LOGGER: "+ error + line)
-        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
 def record_solves():
@@ -826,120 +817,252 @@ def record_solves():
                         "event_type":k,
                         k: q.label,
                         "solved_at": q.time_solved,
-                        "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        "recorded_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
                     new_event = EventTracker(data=json.dumps(cur_data))
                     db.session.add(new_event)
                     db.session.commit()
 
 
-def get_remote_lrs():
+#######
+# xAPI/CMI5 Functions
+#######
+def load_xapi_variables():
     """
-    Returns a RemoteLRS object based on the config in globals.
-    Returns None if xAPI is disabled or missing config.
+    Loads xAPI values into globals
     """
-    if not globals.xapi_enabled or not globals.xapi_endpoint:
+    globals.xapi_endpoint     = read_xapi_value('cmi5_endpoint')
+    globals.xapi_registration = read_xapi_value('cmi5_registration')
+    globals.xapi_fetch        = read_xapi_value('cmi5_fetch')
+    globals.xapi_session_id   = read_xapi_value('cmi5_sessionId')
+    globals.xapi_activity_id  = read_xapi_value('cmi5_activityId')
+    globals.xapi_auth_token   = read_xapi_value('cmi5_auth')
+
+    # JSON values
+    globals.xapi_actor = read_xapi_value('cmi5_actor', decode_json=True) or {}
+    
+    context = read_xapi_value('cmi5_context', decode_json=True) or {}
+    context["registration"] = globals.xapi_registration
+    globals.xapi_context = context
+
+def read_xapi_value(key, decode_json=False):
+    """
+    Reads xAPI-related variables based on location config (env, guestinfo).
+    """
+    location = globals.xapi_variables_location
+
+    value = None
+
+    if location == "env":
+        value = get_clean_env(key)
+
+    elif location == "guestinfo":
+        try:
+            output = subprocess.run(
+                f"vmtoolsd --cmd 'info-get guestinfo.{key}'",
+                shell=True,
+                capture_output=True
+            )
+            if 'no value' not in output.stderr.decode('utf-8').lower():
+                value = output.stdout.decode('utf-8').strip()
+            else:
+                logger.warning(f"[guestinfo] No value found for guestinfo.{key}")
+        except Exception as e:
+            logger.warning(f"[guestinfo] Failed to read guestinfo.{key}: {e}")
+
+    elif location == "qemu":
+        try:
+            with open(f"/sys/firmware/qemu_fw_cfg/by_name/opt/guestinfo.{key}/raw", "r") as f:
+                value = f.read().strip()
+        except Exception as e:
+            logger.warning(f"[qemu] Failed to read guestinfo.{key}: {e}")
+
+    if not value:
+        logger.warning(f"[xAPI] No value found for key: {key} using method: {location}")
         return None
 
-    lrs = RemoteLRS(
-        version="1.0.3",
-        endpoint=globals.xapi_endpoint,
-        username=globals.xapi_username,
-        password=globals.xapi_password
-    )
-    return lrs
+    if decode_json:
+        try:
+            return json.loads(value)
+        except Exception as e:
+            logger.error(f"[xAPI] Failed to decode JSON for {key}: {e}")
+            return None
+
+    return value
 
 
-def send_completed_xapi_tincan():
+def send_xapi_statement(statement: dict, statement_id: str):
     """
+    Sends a single xAPI statement
     """
-    lrs = get_remote_lrs()
-    if not lrs:
+    
+    # Uses the same UUID generated in the statement
+    statement["id"] = statement_id
+
+    endpoint = f"{globals.xapi_endpoint}/statements?statementId={statement_id}"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-Experience-API-Version": "1.0.3",
+        "Authorization": f"{globals.xapi_auth_token}"
+    }
+
+    try:
+        resp = requests.put(endpoint, json=statement, headers=headers, timeout=5)
+        if resp.status_code not in (204,):
+            logger.error(f"[xAPI] Failed to PUT statement: {resp.status_code} {resp.text}")
+        else:
+            verb_id = statement.get("verb", {}).get("id", "")
+            logger.info(f"[xAPI] Statement PUT successfully (verb={verb_id}, id={statement_id}).")
+    except Exception as e:
+        logger.error(f"[xAPI] Exception sending statement: {e}")
+
+def send_completed_xapi():
+    """
+    Send a CMI5-compliant 'completed' statement at the AU level.
+    """
+    if not globals.xapi_enabled:
         return
 
-    verb = Verb(
-        id="http://adlnet.gov/expapi/verbs/completed",
-        display=LanguageMap({'en-US': 'completed'})
-    )
-    actor = Agent(
-        name=globals.xapi_actor_name,
-        mbox=f"mailto:{globals.xapi_actor_name}@example.com"
-    )
-    activity = Activity(
-        id=f"https://challenge.us/xapi/{globals.challenge_name_uri}",
-        definition=ActivityDefinition(
-            name=LanguageMap({'en-US': globals.challenge_name}),
-            description=LanguageMap({'en-US': 'All questions solved'})
-        )
-    )
-    statement = Statement(
-        actor=actor,
-        verb=verb,
-        object=activity
-    )
-    response = lrs.save_statement(statement)
-    if not response.success:
-        logger.error(f"Failed to send completed statement to LRS: {response.data}")
-    else:
-        logger.info(f"Sent xAPI 'completed' statement for challenge {globals.challenge_name}")
+    now = datetime.now(timezone.utc)
+    statement_id = str(uuid.uuid4())
+    au_id = f"{globals.xapi_activity_id}"
+
+    session_start = globals.xapi_au_start_time
+    if isinstance(session_start, str):
+        session_start = datetime.fromisoformat(session_start)
+
+    duration_seconds = (now - session_start).total_seconds()
+
+    statement = {
+        "id": statement_id,
+        "actor": globals.xapi_actor,
+        "verb": {
+            "id": "http://adlnet.gov/expapi/verbs/completed",
+            "display": {"en-US": "completed"}
+        },
+        "object": {
+            "id": au_id,
+            "objectType": "Activity",
+            "definition": {
+                "name": {"en-US": globals.challenge_name},
+                "description": {"en-US": "All questions solved"},
+                "type": "http://adlnet.gov/expapi/activities/lesson"
+            }
+        },
+        "result": {
+            "completion": True,
+            "duration": f"PT{int(duration_seconds)}S"
+        },
+        "context": get_cmi5_defined_context([
+            "https://w3id.org/xapi/cmi5/context/categories/cmi5",
+            "https://w3id.org/xapi/cmi5/context/categories/moveon"
+        ]),
+        "timestamp": now.isoformat()
+    }
+    send_xapi_statement(statement, statement_id)
+    send_terminated_xapi()
 
 
-def send_question_statement(
-    question_label: str,
-    question_text: str,
-    success: bool,
-):
+def send_terminated_xapi():
     """
-    Send an xAPI statement at the question level.
+    Send a CMI5-compliant 'terminated' statement at the AU level when session ends.
     """
-    lrs = get_remote_lrs()
-    if not lrs:
+    if not globals.xapi_enabled:
         return
 
-    actor = Agent(
-        name=globals.xapi_actor_name,
-        mbox=f"mailto:admin@example.com"
-    )
+    now = datetime.now(timezone.utc)
+    statement_id = str(uuid.uuid4())
+    au_id = f"{globals.xapi_activity_id}"
 
-    verb_id = "http://adlnet.gov/expapi/verbs/passed" if success else "http://adlnet.gov/expapi/verbs/failed"
-    verb = Verb(
-        id=verb_id,
-        display=LanguageMap({"en-US": "passed" if success else "failed"})
-    )
+    session_start = globals.xapi_au_start_time
+    if isinstance(session_start, str):
+        session_start = datetime.fromisoformat(session_start)
 
-    question_id = f"https://challenge.us/xapi/{globals.challenge_name_uri}/{question_label}"
-    activity_def = ActivityDefinition(
-        name=LanguageMap({"en-US": question_label}),
-        description=LanguageMap({"en-US": question_text}),
-    )
-    question_activity = Activity(
-        id=question_id,
-        definition=activity_def
-    )
+    duration_seconds = (now - session_start).total_seconds()
 
-    parent_activity_id = f"https://challenge.us/xapi/{globals.challenge_name_uri}"  # same ID used in the top-level statements
-    parent_activity = Activity(id=parent_activity_id)
+    statement = {
+        "id": statement_id,
+        "actor": globals.xapi_actor,
+        "verb": {
+            "id": "http://adlnet.gov/expapi/verbs/terminated",
+            "display": {"en-US": "terminated"}
+        },
+        "object": {
+            "id": au_id,
+            "objectType": "Activity",
+            "definition": {
+                "name": {"en-US": globals.challenge_name},
+                "type": "http://adlnet.gov/expapi/activities/lesson"
+            }
+        },
+        "result": {
+            "duration": f"PT{int(duration_seconds)}S"
+        },
+        "context": get_cmi5_defined_context([
+            "https://w3id.org/xapi/cmi5/context/categories/cmi5"
+        ]),
+        "timestamp": now.isoformat()
+    }
+    send_xapi_statement(statement, statement_id)
 
-    context = Context(
-        context_activities=ContextActivities(
-            parent=[parent_activity]
-        )
-    )
 
-    statement_result = Result(
-        success=success,
-    )
+def send_question_statement(question_label: str, question_text: str, success: bool):
+    """
+    Send a question-level 'answered' statement with result.
+    """
+    if not globals.xapi_enabled:
+        return
 
-    statement = Statement(
-        actor=actor,
-        verb=verb,
-        object=question_activity,
-        result=statement_result,
-        context=context
-    )
+    statement_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    au_id = f"{globals.xapi_activity_id}"
 
-    response = lrs.save_statement(statement)
-    if not response.success:
-        logger.error(f"Failed to save question statement: {response.data}")
-    else:
-        logger.info(f"{actor.name} {verb.display['en-US']} {question_label} (success={success})")
+    statement = {
+        "id": statement_id,
+        "actor": globals.xapi_actor,
+        "verb": {
+            "id": "http://adlnet.gov/expapi/verbs/answered",
+            "display": {"en-US": "answered"}
+        },
+        "object": {
+            "objectType": "Activity",
+            "id": au_id,
+            "definition": {
+                "name": {"en-US": question_label},
+                "description": {"en-US": question_text}
+            }
+        },
+        "result": {
+            "success": success
+        },
+        "context": globals.xapi_context,
+        "timestamp": now.isoformat()
+    }
+
+    send_xapi_statement(statement, statement_id)
+
+def get_cmi5_defined_context(categories=None):
+    """
+    Appends required categories activities to the context 
+    """
+    context = copy.deepcopy(globals.xapi_context)
+
+    if categories is None:
+        categories = []
+
+    if "contextActivities" not in context:
+        context["contextActivities"] = {}
+
+    existing_category = context["contextActivities"].get("category", [])
+    existing_ids = {act.get("id") for act in existing_category}
+
+    for category_id in categories:
+        if category_id not in existing_ids:
+            existing_category.append({
+                "id": category_id,
+                "objectType": "Activity"
+            })
+
+    context["contextActivities"]["category"] = existing_category
+    return context

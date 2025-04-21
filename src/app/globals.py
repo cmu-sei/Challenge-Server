@@ -11,7 +11,7 @@
 
 import subprocess, os
 from flask_apscheduler import APScheduler
-from datetime import timedelta, time
+from datetime import datetime, timedelta, time, timezone
 
 class Globals():
     def __init__(self):
@@ -94,9 +94,14 @@ class Globals():
         ## Scheduler is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
         self.challenge_name = ""
-        self.challenge_name_uri = ""
         self.xapi_enabled = False
+        self.xapi_variables_location = ""
+        self.xapi_au_start_time = ""
         self.xapi_endpoint = ""
-        self.xapi_username = ""
-        self.xapi_password = ""
-        self.xapi_actor_name = "EmptyUser"
+        self.xapi_registration = ""
+        self.xapi_fetchUrl = ""
+        self.xapi_auth_token = ""
+        self.xapi_actor = {}
+        self.xapi_session_id = ""
+        self.xapi_context = {}
+        self.xapi_activity_id = ""
