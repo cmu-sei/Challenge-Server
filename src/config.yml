@@ -85,7 +85,7 @@ grading:
         text: "Submission for parts 1, 2, and 3"
       file2: 
         text: "Submission for parts 4, 5, and 6"
-    format: zip # "zip" is the only one for now.
+    format: zip # Archive format to save each file bundle as - "zip" is the only one for now.
     max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
 
   submission:
