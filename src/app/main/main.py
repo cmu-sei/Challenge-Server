@@ -13,7 +13,7 @@ import datetime, copy, os, zipfile, tempfile, shutil
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
 from werkzeug.utils import secure_filename
 from app.extensions import logger, globals
-from app.functions import do_grade, check_questions,read_token
+from app.functions import do_grade, check_questions,read_token, construct_file_save_path, get_most_recent_uploads
 from app.models import QuestionTracking
 
 main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
@@ -25,28 +25,6 @@ def pass_globals():
 @main.route('/', methods=['GET'])
 def home():
     return render_template('home.html')
-
-def construct_file_save_path(file_key: str) -> str:
-    file_format = globals.grading_uploads['format']
-    return os.path.join(
-        globals.uploaded_file_directory,
-        '.'.join([file_key, file_format])
-    )
-
-def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
-    '''
-    Get the timestamp of the most recent file upload for each file key in the map.
-    '''
-    most_recent_uploads = {}
-    for key in file_keys:
-        message = "No submissions yet."
-        path = construct_file_save_path(key)
-        if os.path.isfile(path):
-            message = str(datetime.datetime.fromtimestamp(os.path.getmtime(path)))
-        most_recent_uploads[key] = str(message)
-
-    return most_recent_uploads
-
 
 @main.route('/tasks', methods=['GET'])
 def tasks():

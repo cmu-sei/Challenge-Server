@@ -407,6 +407,28 @@ def update_db(type_q,label=None, val=None):
                         return
 
 
+def construct_file_save_path(file_key: str) -> str:
+    file_format = globals.grading_uploads['format']
+    return os.path.join(
+        globals.uploaded_file_directory,
+        '.'.join([file_key, file_format])
+    )
+
+def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
+    '''
+    Get the timestamp of the most recent file upload for each file key in the map.
+    '''
+    most_recent_uploads = {}
+    for key in file_keys:
+        message = "No submissions yet."
+        path = construct_file_save_path(key)
+        if os.path.isfile(path):
+            message = str(datetime.datetime.fromtimestamp(os.path.getmtime(path)))
+        most_recent_uploads[key] = str(message)
+
+    return most_recent_uploads
+
+
 #######
 # Grading Functions
 #######
@@ -422,9 +444,14 @@ def do_grade(args):
         if (ques not in globals.grading_parts.keys()) or (globals.grading_parts[ques]['mode'] not in globals.VALID_CONFIG_MODES):
             logger.debug(f"The key {ques} is not a a grading key/mode. Skipping")
             continue
-        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] != "button"):
-            index = int(ques[-1])
+        index = int(ques[-1])
+        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] not in ("button", "upload")):
             manual_grading_list.insert(index,{ques:ans})
+        elif globals.grading_parts[ques]['mode'] == "upload":
+            file_key = globals.grading_parts[ques]['upload_key']
+            saved_archive = construct_file_save_path(file_key)
+            manual_grading_list.insert(index,{ques:saved_archive})
+
 
     script_path = os.path.join(globals.custom_script_dir, globals.manual_grading_script)
     _, ext = os.path.splitext(script_path)

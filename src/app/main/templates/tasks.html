@@ -93,6 +93,17 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
+            {% if 'upload' in questions.keys() %}
+            <tr class="bodypost">
+                <th colspan=2 class="q_long_line">Tasks below will be auto-graded with submitted files</th>
+            </tr>
+            {% for key, value in questions['upload'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+                <td hidden><input type="hidden" name="{{key}}"></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
             {% if 'cron' in questions.keys() %}
             <tr class="bodypost">
                 <th colspan=2 class="q_long_line">Tasks below will be auto-graded

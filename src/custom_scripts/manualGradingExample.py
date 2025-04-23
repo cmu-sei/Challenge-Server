@@ -12,7 +12,7 @@
 # Please reference `grading_README.md` to understand grading script requirements.
 #####
 
-import json, sys
+import json, sys, os
 
 # 'submission' will contain text submitted to the question by the user
 def grade(submission=None):
@@ -41,6 +41,13 @@ def grade(submission=None):
         results['GradingCheck4'] = "Success"
     else:
         results['GradingCheck4'] = "Failure"
+
+    gc5_path = submission['GradingCheck5']
+    # This one should be a file path, but the file won't exist if the user hasn't submitted yet.
+    if os.path.isfile(gc5_path):
+        results['GradingCheck5'] = "Success"
+    else:
+        results['GradingCheck5'] = "Failure"
 
     return results
 
