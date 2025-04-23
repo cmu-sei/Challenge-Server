@@ -25,6 +25,28 @@ def pass_globals():
 def home():
     return render_template('home.html')
 
+def construct_file_save_path(file_key: str) -> str:
+    file_format = globals.grading_uploads['format']
+    return os.path.join(
+        globals.uploaded_file_directory,
+        '.'.join([file_key, file_format])
+    )
+
+def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
+    '''
+    Get the timestamp of the most recent file upload for each file key in the map.
+    '''
+    most_recent_uploads = {}
+    for key in file_keys:
+        message = "No submissions yet."
+        path = construct_file_save_path(key)
+        if os.path.isfile(path):
+            message = os.path.getmtime(path)
+        most_recent_uploads[key] = str(message)
+
+    return most_recent_uploads
+
+
 @main.route('/tasks', methods=['GET'])
 def tasks():
     if globals.grading_enabled == False:
@@ -42,7 +64,8 @@ def tasks():
             parts_org[q_mode][key] = value
     if globals.grading_uploads and 'files' in globals.grading_uploads:
         files = globals.grading_uploads['files']
-        parts_org['uploads'] = files
+        parts_org['new_uploads'] = files
+        parts_org['existing_uploads'] = get_most_recent_uploads(files.keys())
 
     return render_template('tasks.html', questions=parts_org)
 
@@ -51,7 +74,9 @@ def upload():
     '''
     Handle saving submitted files.
     '''
-    print(request.files.getlist("file1"))
+    logger.info(request.files)
+
+    return tasks()
 
 @main.route('/grade', methods=['GET', 'POST'])
 def grade():
