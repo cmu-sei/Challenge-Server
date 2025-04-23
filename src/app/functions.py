@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64, isodate
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -300,15 +300,18 @@ def read_config(app):
     if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
 
-    globals.xapi_enabled = conf['xapi']['enabled'] if 'xapi' in conf and 'enabled' in conf['xapi'] else False
+    globals.xapi_enabled = get_clean_env('CS_XAPI_ENABLED', '').lower() == 'true' or (conf.get('xapi') or {}).get('enabled') or False
     logger.info(f"xAPI enabled: {globals.xapi_enabled}")
 
+    globals.xapi_variables_location = get_clean_env('CS_XAPI_VARIABLES_LOCATION') or (conf.get('xapi') or {}).get('variables_location') or 'env'
+    if globals.xapi_variables_location not in ['env', 'guestinfo']:
+        logger.error(f"xAPI variable location: {globals.xapi_variables_location} is not valid. Must be 'env' or 'guestinfo'.")
+        sys.exit(1)
+    logger.info(f"xAPI variable source: {globals.xapi_variables_location}")
+
     if globals.xapi_enabled:
-        globals.xapi_variables_location = conf['xapi'].get('variables_location', 'guestinfo')
-        logger.info(f"xAPI variable source: {globals.xapi_variables_location}")
         globals.xapi_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        
-        # Now load the xAPI variables
+        # Load xAPI vars if xAPI is enabled
         load_xapi_variables()
 
 def check_questions():
@@ -969,6 +972,8 @@ def send_completed_xapi():
         session_start = datetime.datetime.fromisoformat(session_start)
 
     duration_seconds = (now - session_start).total_seconds()
+    duration = datetime.timedelta(seconds=duration_seconds)
+    iso_duration = isodate.duration_isoformat(duration)
 
     statement = {
         "id": statement_id,
@@ -988,7 +993,7 @@ def send_completed_xapi():
         },
         "result": {
             "completion": True,
-            "duration": f"PT{int(duration_seconds)}S"
+            "duration": iso_duration
         },
         "context": get_cmi5_defined_context([
             "https://w3id.org/xapi/cmi5/context/categories/cmi5",
@@ -1016,6 +1021,8 @@ def send_terminated_xapi():
         session_start = datetime.datetime.fromisoformat(session_start)
 
     duration_seconds = (now - session_start).total_seconds()
+    duration = datetime.timedelta(seconds=duration_seconds)
+    iso_duration = isodate.duration_isoformat(duration)
 
     statement = {
         "id": statement_id,
@@ -1033,7 +1040,7 @@ def send_terminated_xapi():
             }
         },
         "result": {
-            "duration": f"PT{int(duration_seconds)}S"
+            "duration": iso_duration
         },
         "context": get_cmi5_defined_context([
             "https://w3id.org/xapi/cmi5/context/categories/cmi5"

@@ -8,7 +8,7 @@ services:
     ports:
       - "8888:8888"
     # environment:
-    # List environment variable configurations here
+    # # List environment variable configurations here
     # - CS_APP_CERT='/path/to/tls/cert'
     # - CS_APP_HOST='0.0.0.0'
     # - CS_APP_KEY='/path/to/tls/key'
@@ -35,8 +35,19 @@ services:
     # - token2="YourToken2"
     # - token3="YourToken3"
     # - token4="YourToken4"
+    # - CS_XAPI_ENABLED='false'
+    # - CS_XAPI_VARIABLES_LOCATION='env'
+    # # All CMI5 environment variables below must be automatically filled by your LMS rather than hardcoded below
+    # - CS_CMI5_ENDPOINT=''
+    # - CS_CMI5_REGISTRATION=''
+    # - CS_CMI5_FETCH=''
+    # - CS_CMI5_SESSIONID=''
+    # - CS_CMI5_ACTIVITYID=''
+    # - CS_CMI5_AUTH=''
+    # - CS_CMI5_ACTOR=''
+    # - CS_CMI5_CONTEXT=''
 
-    # Optional: load all env vars from a file instead of listing individually above
+    # # Optional: load all env vars from a file instead of listing individually above
     # env_file:
     # - .env
     volumes:
