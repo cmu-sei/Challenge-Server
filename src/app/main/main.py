@@ -121,7 +121,11 @@ def grade():
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
             logger.info(f"Calling do_grade with data: {req_data}")
-            globals.task = globals.executor.submit(do_grade, req_data)
+
+            # Make sure the grading script gets all grading check keys even if the user didn't enter anything.
+            user_did_not_submit = {check_name: '' for check_name in globals.grading_parts}
+
+            globals.task = globals.executor.submit(do_grade, user_did_not_submit | req_data)
 
         return render_template('grading.html', submit_time=globals.manual_submit_time)
 
