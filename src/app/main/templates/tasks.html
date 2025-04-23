@@ -25,10 +25,32 @@ DM24-0645
     Tasks
 </span>
 
-<form method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data" id="min-top-padding">
-    <fieldset>
-        <!--<legend align='center'>Challenge Questions</legend>-->
-        <table class="res-table">
+<fieldset>
+    <!--<legend align='center'>Challenge Questions</legend>-->
+    {% if 'uploads' in questions.keys() %}
+    <table class="res-table">
+        <form id="uploadForm" method="POST" action="{{url_for('main.upload')}}" enctype="multipart/form-data">
+            <thead class="res-thead">
+                <th class="q_item1"><label>Task(s)</label></th>
+                <th class="q_item2"><label>File(s)</label></th>
+            </thead>
+            {% for key, value in questions['uploads'].items() %}
+            <tr class="bodypost">
+                <td class="q_item1"><label>{{ value['text'] }}</label></td>
+                <td file>
+                    <input type="file" name="{{key}}[]" multiple directory webkitdirectory mozdirectory>
+                </td>
+            </tr>
+            {% endfor %}
+        </form>
+    </table>
+    <br>
+    <input type="submit" name="upload" value="Upload Files" form="uploadForm" style="font-size: 20px;">
+    <br>
+    <br>
+    {% endif %}
+    <table class="res-table">
+        <form id="gradeForm" method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data">
             {% if 'mc' in questions.keys() %}
             <thead class="res-thead">
                 <th class="q_item1"><label>Question</label></th>
@@ -71,24 +93,6 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
-            {% if 'uploads' in questions.keys() %}
-            <thead class="res-thead">
-                <th class="q_item1"><label>Task(s)</label></th>
-                <th class="q_item2"><label>File(s)</label></th>
-            </thead>
-            {% for key, value in questions['uploads'].items() %}
-            <tr class="bodypost">
-                <td class="q_item1"><label>{{ value['text'] }}</label></td>
-                <form action="{{url_for('main.upload')}}" method="POST" enctype="multipart/form-data" target="upload-frame">
-                <!-- <form action="{{url_for('main.upload')}}" method="POST" enctype="multipart/form-data"> -->
-                    <td file>
-                        <input type="file" name="{{key}}[]" multiple directory webkitdirectory mozdirectory>
-                        <input type="submit" value="Upload">
-                    </td>
-                </form>
-            </tr>
-            {% endfor %}
-            {% endif %}
             {% if 'cron' in questions.keys() %}
             <tr class="bodypost">
                 <th colspan=2 class="q_long_line">Tasks below will be auto-graded
@@ -105,13 +109,11 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
-        </table>
-        <br>
-        <input type="submit" name="submit" value="Submit" style="font-size: 20px;">
-    </fieldset>
-</form>
-
-<iframe name="upload-frame" style="display:none;"/>
+        </form>
+    </table>
+    <br>
+    <input type="submit" name="submit" value="Submit" form="gradeForm" style="font-size: 20px;">
+</fieldset>
 {% endif %}
 {% endblock %}
 
