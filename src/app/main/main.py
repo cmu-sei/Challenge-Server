@@ -9,8 +9,9 @@
 #
 
 
-import datetime, copy, os
+import datetime, copy, os, zipfile, tempfile, shutil
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
+from werkzeug.utils import secure_filename
 from app.extensions import logger, globals
 from app.functions import do_grade, check_questions,read_token
 from app.models import QuestionTracking
@@ -41,7 +42,7 @@ def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
         message = "No submissions yet."
         path = construct_file_save_path(key)
         if os.path.isfile(path):
-            message = os.path.getmtime(path)
+            message = str(datetime.datetime.fromtimestamp(os.path.getmtime(path)))
         most_recent_uploads[key] = str(message)
 
     return most_recent_uploads
@@ -74,7 +75,30 @@ def upload():
     '''
     Handle saving submitted files.
     '''
-    logger.info(request.files)
+    for file_key in globals.grading_uploads['files']:
+        uploaded = list(
+            filter(
+                lambda f: f.filename != '',
+                request.files.getlist(file_key),
+            )
+        )
+        logger.info(f"User file upload: {file_key} - {uploaded}")
+        if not uploaded:
+            continue
+
+        if globals.grading_uploads['format'] == 'zip':
+            temp_dir = tempfile.mkdtemp()
+            zip_path = construct_file_save_path(file_key)
+            with zipfile.ZipFile(zip_path, 'w') as zip_file:
+                for file in uploaded:
+                    filename = secure_filename(file.filename)
+                    if not filename:
+                        continue
+                    filepath = os.path.join(temp_dir, filename)
+                    with open(filepath, 'w') as f:
+                        file.save(f)
+                    zip_file.write(filepath)
+            shutil.rmtree(temp_dir)
 
     return tasks()
 
