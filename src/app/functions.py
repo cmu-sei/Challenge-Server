@@ -101,6 +101,32 @@ def read_config(app):
         globals.grading_parts = conf['grading']['parts']
         globals.grader_post = get_clean_env('CS_GRADER_POST', '').lower() == 'true' or conf['grading'].get('grader_post') or False
 
+        globals.grading_uploads.update(conf['grading'].get('uploads', {}))
+        if 'files' in globals.grading_uploads:
+            format_ = globals.grading_uploads.setdefault('format', 'zip')
+            if format_ not in globals.VALID_UPLOAD_FORMATS:
+                logger.error(f"Upload format {format_} is not a valid upload format.")
+                sys.exit(1)
+
+            files = globals.grading_uploads['files']
+            max_upload_size = globals.grading_uploads.setdefault('max_upload_size', '1M')
+            match max_upload_size[-1]:
+                case 'G':
+                    multiplier = 1024 * 1024 * 1024
+                case 'M':
+                    multiplier = 1024 * 1024
+                case 'K':
+                    multiplier = 1024
+                case _:
+                    multiplier = 1
+            try:
+                size_value = int(max_upload_size[:-1])
+            except ValueError:
+                logger.error(f"Max upload size {max_upload_size} should end with G, M, K, or a numeric value.")
+                sys.exit(1)
+            app.config['MAX_CONTENT_LENGTH'] = size_value * multiplier
+
+
         # Initialize phases & add to DB
         with app.app_context():
             if conf['grading'].get('phases'):

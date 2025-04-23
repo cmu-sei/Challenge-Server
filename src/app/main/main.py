@@ -40,8 +40,18 @@ def tasks():
                 parts_org[q_mode][key] = value
         else:
             parts_org[q_mode][key] = value
+    if globals.grading_uploads and 'files' in globals.grading_uploads:
+        files = globals.grading_uploads['files']
+        parts_org['uploads'] = files
+
     return render_template('tasks.html', questions=parts_org)
 
+@main.route('/upload', methods=['POST'])
+def upload():
+    '''
+    Handle saving submitted files.
+    '''
+    print(request.files.getlist("file1"))
 
 @main.route('/grade', methods=['GET', 'POST'])
 def grade():

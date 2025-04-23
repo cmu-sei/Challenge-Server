@@ -79,6 +79,15 @@ grading:
   rate_limit: 0
   token_location: env
 
+  uploads: # Comment or remove the uploads section to disable uploads.
+    files:
+      file1: 
+        text: "Submission for parts 1, 2, and 3"
+      file2: 
+        text: "Submission for parts 4, 5, and 6"
+    format: zip # "zip" is the only one for now.
+    max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
+
   submission:
     method: display
     grader_url: ""
@@ -106,6 +115,11 @@ grading:
       token_name: token4
       text: "Question 4: Enter 'test4' to pass"
       mode: text
+    GradingCheck5:
+      token_name: token5
+      text: "Question 5: Implement the `fun()` function"
+      upload_key: file1
+      mode: upload
 
   phases: false
 

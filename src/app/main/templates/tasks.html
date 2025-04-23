@@ -71,6 +71,24 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
+            {% if 'uploads' in questions.keys() %}
+            <thead class="res-thead">
+                <th class="q_item1"><label>Task(s)</label></th>
+                <th class="q_item2"><label>File(s)</label></th>
+            </thead>
+            {% for key, value in questions['uploads'].items() %}
+            <tr class="bodypost">
+                <td class="q_item1"><label>{{ value['text'] }}</label></td>
+                <form action="{{url_for('main.upload')}}" method="POST" enctype="multipart/form-data" target="upload-frame">
+                <!-- <form action="{{url_for('main.upload')}}" method="POST" enctype="multipart/form-data"> -->
+                    <td file>
+                        <input type="file" name="{{key}}[]" multiple directory webkitdirectory mozdirectory>
+                        <input type="submit" value="Upload">
+                    </td>
+                </form>
+            </tr>
+            {% endfor %}
+            {% endif %}
             {% if 'cron' in questions.keys() %}
             <tr class="bodypost">
                 <th colspan=2 class="q_long_line">Tasks below will be auto-graded
@@ -92,5 +110,8 @@ DM24-0645
         <input type="submit" name="submit" value="Submit" style="font-size: 20px;">
     </fieldset>
 </form>
+
+<iframe name="upload-frame" style="display:none;"/>
 {% endif %}
 {% endblock %}
+
