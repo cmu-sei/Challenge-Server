@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64, isodate
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64, isodate, binascii
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -873,6 +873,15 @@ def record_solves():
 #######
 # xAPI/CMI5 Functions
 #######
+
+def base64_decode(value):
+    if not value or not isinstance(value, str):
+        return value
+    try:
+        return base64.b64decode(value, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return value
+
 def load_xapi_variables():
     """
     Loads xAPI values into globals
@@ -919,6 +928,11 @@ def read_xapi_value(key, decode_json=False):
     if not value:
         logger.warning(f"[xAPI] No value found for key: {key} using method: {location}")
         return None
+
+    original_value = value
+    value = base64_decode(value)
+    if value != original_value:
+        logger.debug(f"[xAPI] Auto base64-decoded {key}: {value}")
 
     if decode_json:
         try:

@@ -166,3 +166,26 @@ A phase cannot be viewed until the previous phase has been completed. This is to
   - Best practice is to name phases with `phase` followed by a number (e.g., `phase1`, `phase2`, etc.).
 
 Examples can be found in the `config.yml` file.
+
+## xapi
+
+xAPI configuration allows the Challenge Server to send "cmi5 allowed" statements.
+
+- `enabled`
+  - Set to `true` to enable sending xAPI statements to an LRS.
+  - `false` disables all xAPI functionality.
+- `variables_location`
+  - Set to `env` to read required parameters from environment variables. **This is the default.**
+  - Set to `guestinfo` to read them from VMware guestinfo.
+  - Can be overridden via `CS_XAPI_VARIABLES_LOCATION`.
+
+When `enabled` is `true`, the following variables **must** be available from the specified location (`env` or `guestinfo`) in order to properly send statements to the desired Learning Record Store (LRS):
+
+- CS_CMI5_ENDPOINT=''
+- CS_CMI5_REGISTRATION=''
+- CS_CMI5_FETCH=''
+- CS_CMI5_SESSIONID=''
+- CS_CMI5_ACTIVITYID=''
+- CS_CMI5_AUTH=''
+- CS_CMI5_ACTOR=''
+- CS_CMI5_CONTEXT=''
