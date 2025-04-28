@@ -895,6 +895,8 @@ def load_xapi_variables():
     Loads xAPI values into globals
     """
     globals.xapi_endpoint     = read_xapi_value('CS_CMI5_ENDPOINT')
+    if globals.xapi_endpoint and globals.xapi_endpoint.endswith('/'):
+        globals.xapi_endpoint = globals.xapi_endpoint.rstrip('/')
     globals.xapi_registration = read_xapi_value('CS_CMI5_REGISTRATION')
     globals.xapi_fetch        = read_xapi_value('CS_CMI5_FETCH')
     globals.xapi_session_id   = read_xapi_value('CS_CMI5_SESSIONID')
