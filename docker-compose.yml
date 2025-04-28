@@ -28,6 +28,7 @@ services:
     # - CS_INFO_HOME_ENABLED='true'
     # - CS_MANUAL_GRADING_SCRIPT="manualGradingExample.py"
     # - CS_MANUAL_GRADING='true'
+    # - CS_PORT_CHECKER='false'
     # - CS_SERVICES_HOME_ENABLED='true'
     # - CS_SUBMISSION_METHOD='display'
     # - CS_TOKEN_LOCATION='env'

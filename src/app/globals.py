@@ -60,6 +60,7 @@ class Globals():
         self.challenge_completion_time = ""
         self.info_home_enabled = False
         self.services_home_enabled = False
+        self.port_checker = False
         # submission globals
         self.grader_url = ""
         self.grader_key = ""

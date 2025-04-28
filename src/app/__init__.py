@@ -141,9 +141,6 @@ def start_grading_server(app):
             db.session.commit()
 
     globals.scheduler.init_app(app)
-
-    # create a job that runs every 10 seconds and executes the function "record_solves"
-    globals.scheduler.add_job(id="Record_Solves",func=record_solves,trigger="interval",seconds=10)
     globals.scheduler.start()
 
     logger.info(f"Starting the Challenge Server.")
