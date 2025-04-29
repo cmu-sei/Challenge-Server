@@ -12,7 +12,8 @@
 import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
 from app.extensions import logger, globals
-from app.functions import do_grade, check_questions,read_token, construct_file_save_path, get_most_recent_uploads, save_uploaded_file
+from app.functions import do_grade, check_questions,read_token
+from app.fileUploads import save_uploaded_file, get_most_recent_uploads
 from app.models import QuestionTracking
 
 main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
