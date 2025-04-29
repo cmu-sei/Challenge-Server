@@ -9,14 +9,15 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, glob, re
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, zipfile, tempfile, shutil
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
+from werkzeug.utils import secure_filename
 from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
-from app.models import QuestionTracking,PhaseTracking, EventTracker
+from app.models import QuestionTracking,PhaseTracking, EventTracker, FileUpload
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -409,65 +410,92 @@ def update_db(type_q,label=None, val=None):
 
 def construct_file_save_path(file_key: str) -> str:
     """
-    Create a new ZIP path for this file_key by appending a submission number.
-    e.g. if file_key == "fileset1", you'll get:
-      fileset1_1.zip, fileset1_2.zip, …
+    Pick the next ZIP filename for this file_key
+    (e.g. "fileset1_3.zip") and return its full path.
     """
-
     upload_dir = globals.uploaded_file_directory
-    ext = globals.grading_uploads.get('format', 'zip')
+    ext        = globals.grading_uploads.get('format', 'zip')
     os.makedirs(upload_dir, exist_ok=True)
 
-    # look for existing numbered files: file_key_*.zip
-    pattern = os.path.join(upload_dir, f"{file_key}_*.{ext}")
-    existing = glob.glob(pattern)
-
-    # find the max index so far
-    max_idx = 0
-    for path in existing:
-        name = os.path.basename(path)
-        m = re.match(rf"{re.escape(file_key)}_(\d+)\.{ext}$", name)
-        if m:
-            idx = int(m.group(1))
-            if idx > max_idx:
-                max_idx = idx
-
-    next_idx = max_idx + 1
+    next_idx = get_latest_submission_number(file_key) + 1
     filename = f"{file_key}_{next_idx}.{ext}"
     return os.path.join(upload_dir, filename)
 
+
+
+def get_latest_submission_number(file_key: str) -> int:
+    """
+    Return the highest submission_number in FileUploads for a given file_key
+    (i.e. filename starting with "<file_key>_"). Returns 0 if none exist.
+    """
+
+    like_pattern = f"{file_key}_%"
+    latest = (
+        FileUpload.query
+        .filter(FileUpload.filename.like(like_pattern))
+        .order_by(FileUpload.submission_number.desc())
+        .first()
+    )
+    return latest.submission_number if latest else 0
+
+
 def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
     """
-    For each upload key, find the highest-numbered ZIP in the upload directory
-    and return its last-modified timestamp as 'YYYY-MM-DD HH:MM:SS'.
-    Returns a dict: { key: '2025-04-29 13:45:02', ... }
+    For each logical key, return the timestamp of its latest ZIP upload
+    (or None). Queries the FileUploads table only.
     """
-
     uploads = {}
-    upload_dir = globals.uploaded_file_directory
-    ext = globals.grading_uploads.get('format', 'zip')
-
     for key in file_keys:
-        pattern = os.path.join(upload_dir, f"{key}_*.{ext}")
-        candidates = glob.glob(pattern)
-        if not candidates:
-            uploads[key] = None
-            continue
-
-        # pick the file with the largest numeric suffix
-        def idx(fn):
-            name = os.path.basename(fn)
-            m = re.match(rf"{re.escape(key)}_(\d+)\.{ext}$", name)
-            return int(m.group(1)) if m else 0
-
-        latest = max(candidates, key=idx)
-
-        # get last-modified time and format it
-        mtime = os.path.getmtime(latest)
-        ts = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-        uploads[key] = ts
-
+        latest = (
+            FileUpload.query
+            .filter(FileUpload.filename.like(f"{key}_%"))
+            .order_by(FileUpload.submission_number.desc())
+            .first()
+        )
+        uploads[key] = (
+            latest.uploaded_at.strftime("%Y-%m-%d %H:%M:%S")
+            if latest else None
+        )
     return uploads
+
+
+
+def save_uploaded_file(file_key: str, uploaded_files: list[str]):
+    # 1) Next index and path
+    next_idx = get_latest_submission_number(file_key) + 1
+    upload_dir = globals.uploaded_file_directory
+    ext        = globals.grading_uploads.get('format', 'zip')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    zip_name = f"{file_key}_{next_idx}.{ext}"
+    zip_path = os.path.join(upload_dir, zip_name)
+
+    # 2) Stream into ZIP and collect inner filenames
+    tmpdir = tempfile.mkdtemp()
+    inner_files = []
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for fs in uploaded_files:
+                safe = secure_filename(fs.filename or "")
+                if not safe:
+                    continue
+                inner_files.append(safe)
+                tmp_fp = os.path.join(tmpdir, safe)
+                fs.save(tmp_fp)
+                zf.write(tmp_fp, arcname=safe)
+    finally:
+        shutil.rmtree(tmpdir)
+
+    # 3) DB insert
+    new_row = FileUpload(
+        filename           = zip_name,
+        submission_number  = next_idx,
+        contained_files    = inner_files
+    )
+    db.session.add(new_row)
+    db.session.commit()
+
+    return zip_path
 
 #######
 # Grading Functions

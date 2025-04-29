@@ -9,11 +9,10 @@
 #
 
 
-import datetime, copy, os, zipfile, tempfile, shutil
+import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
-from werkzeug.utils import secure_filename
 from app.extensions import logger, globals
-from app.functions import do_grade, check_questions,read_token, construct_file_save_path, get_most_recent_uploads
+from app.functions import do_grade, check_questions,read_token, construct_file_save_path, get_most_recent_uploads, save_uploaded_file
 from app.models import QuestionTracking
 
 main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
@@ -65,18 +64,8 @@ def upload():
             continue
 
         if globals.grading_uploads['format'] == 'zip':
-            temp_dir = tempfile.mkdtemp()
-            zip_path = construct_file_save_path(file_key)
-            with zipfile.ZipFile(zip_path, 'w') as zip_file:
-                for file in uploaded:
-                    filename = secure_filename(file.filename)
-                    if not filename:
-                        continue
-                    filepath = os.path.join(temp_dir, filename)
-                    with open(filepath, 'wb') as f:
-                        file.save(f)
-                    zip_file.write(filepath)
-            shutil.rmtree(temp_dir)
+            zip_path = save_uploaded_file(file_key, uploaded)
+
 
     return tasks()
 

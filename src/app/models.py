@@ -10,6 +10,8 @@
 
 
 from app.extensions import db
+from sqlalchemy import func, JSON
+
 
 class QuestionTracking(db.Model):
     __tablename__ = 'QuestionTracking'
@@ -41,3 +43,24 @@ class EventTracker(db.Model):
     __tablename__ = 'EventTracker'
     id = db.Column(db.Integer, primary_key=True,autoincrement=True)
     data = db.Column(db.String, nullable=False)
+
+
+class FileUpload(db.Model):
+    __tablename__ = 'FileUploads'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    filename      = db.Column(db.String,  nullable=False)
+    submission_number = db.Column(db.Integer, nullable=False)
+    uploaded_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default = func.now()
+    )
+    contained_files   = db.Column(
+                        JSON,
+                        nullable=False,
+                        default=list
+                    )
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
