@@ -73,7 +73,7 @@ def upload():
                     if not filename:
                         continue
                     filepath = os.path.join(temp_dir, filename)
-                    with open(filepath, 'w') as f:
+                    with open(filepath, 'wb') as f:
                         file.save(f)
                     zip_file.write(filepath)
             shutil.rmtree(temp_dir)

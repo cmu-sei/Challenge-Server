@@ -42,13 +42,6 @@ def grade(submission=None):
     else:
         results['GradingCheck4'] = "Failure"
 
-    gc5_path = submission['GradingCheck5']
-    # This one should be a file path, but the file won't exist if the user hasn't submitted yet.
-    if os.path.isfile(gc5_path):
-        results['GradingCheck5'] = "Success"
-    else:
-        results['GradingCheck5'] = "Failure"
-
     return results
 
 
