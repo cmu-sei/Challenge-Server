@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, glob, re
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -408,26 +408,66 @@ def update_db(type_q,label=None, val=None):
 
 
 def construct_file_save_path(file_key: str) -> str:
-    file_format = globals.grading_uploads['format']
-    return os.path.join(
-        globals.uploaded_file_directory,
-        '.'.join([file_key, file_format])
-    )
+    """
+    Create a new ZIP path for this file_key by appending a submission number.
+    e.g. if file_key == "fileset1", you'll get:
+      fileset1_1.zip, fileset1_2.zip, …
+    """
+
+    upload_dir = globals.uploaded_file_directory
+    ext = globals.grading_uploads.get('format', 'zip')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # look for existing numbered files: file_key_*.zip
+    pattern = os.path.join(upload_dir, f"{file_key}_*.{ext}")
+    existing = glob.glob(pattern)
+
+    # find the max index so far
+    max_idx = 0
+    for path in existing:
+        name = os.path.basename(path)
+        m = re.match(rf"{re.escape(file_key)}_(\d+)\.{ext}$", name)
+        if m:
+            idx = int(m.group(1))
+            if idx > max_idx:
+                max_idx = idx
+
+    next_idx = max_idx + 1
+    filename = f"{file_key}_{next_idx}.{ext}"
+    return os.path.join(upload_dir, filename)
 
 def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
-    '''
-    Get the timestamp of the most recent file upload for each file key in the map.
-    '''
-    most_recent_uploads = {}
+    """
+    For each upload key, find the highest-numbered ZIP in the upload directory
+    and return its last-modified timestamp as 'YYYY-MM-DD HH:MM:SS'.
+    Returns a dict: { key: '2025-04-29 13:45:02', ... }
+    """
+
+    uploads = {}
+    upload_dir = globals.uploaded_file_directory
+    ext = globals.grading_uploads.get('format', 'zip')
+
     for key in file_keys:
-        message = "No submissions yet."
-        path = construct_file_save_path(key)
-        if os.path.isfile(path):
-            message = str(datetime.datetime.fromtimestamp(os.path.getmtime(path)))
-        most_recent_uploads[key] = str(message)
+        pattern = os.path.join(upload_dir, f"{key}_*.{ext}")
+        candidates = glob.glob(pattern)
+        if not candidates:
+            uploads[key] = None
+            continue
 
-    return most_recent_uploads
+        # pick the file with the largest numeric suffix
+        def idx(fn):
+            name = os.path.basename(fn)
+            m = re.match(rf"{re.escape(key)}_(\d+)\.{ext}$", name)
+            return int(m.group(1)) if m else 0
 
+        latest = max(candidates, key=idx)
+
+        # get last-modified time and format it
+        mtime = os.path.getmtime(latest)
+        ts = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+        uploads[key] = ts
+
+    return uploads
 
 #######
 # Grading Functions
