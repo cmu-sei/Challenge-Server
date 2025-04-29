@@ -172,25 +172,26 @@ A phase cannot be viewed until the previous phase has been completed. This is to
 
 Examples can be found in the `config.yml` file.
 
-## xapi
+## CMI5
 
-xAPI configuration allows the Challenge Server to send "cmi5 allowed" statements.
+CMI5 configuration allows the Challenge Server to send "cmi5 defined" and "cmi5 allowed" statements.
 
 - `enabled`
-  - Set to `true` to enable sending xAPI statements to an LRS.
-  - `false` disables all xAPI functionality.
-- `variables_location`
-  - Set to `env` to read required parameters from environment variables. **This is the default.**
-  - Set to `guestinfo` to read them from VMware guestinfo.
-  - Can be overridden via `CS_XAPI_VARIABLES_LOCATION`.
-
-When `enabled` is `true`, the following variables **must** be available from the specified location (`env` or `guestinfo`) in order to properly send statements to the desired Learning Record Store (LRS):
-
-- CS_CMI5_ENDPOINT=''
-- CS_CMI5_REGISTRATION=''
-- CS_CMI5_FETCH=''
-- CS_CMI5_SESSIONID=''
-- CS_CMI5_ACTIVITYID=''
-- CS_CMI5_AUTH=''
-- CS_CMI5_ACTOR=''
-- CS_CMI5_CONTEXT=''
+  - Set to `true` to enable sending CMI5 statements to an LRS.
+  - `false` disables all CMI5 functionality.
+- `endpoint` - required - URL to the LMS listener location. 
+  - Parsed from the Launch URL.
+  - Must be an URL-encoded URL.
+- `registration` - required - Registration ID corresponding to the learner's enrollment for the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an UUID.
+- `activityid` - required - Activity ID of the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an IRI.
+- `actor` - required - JSON object of objectType of Agent (as defined in xAPI) that identifies the learner launching the AU so the AU will be able to include it in xAPI requests.
+  - Parsed from the Launch URL.
+  - Must be a JSON object.
+- `contextTemplate` - required - contextTemplate for the AU being launched.
+  - Must be a JSON context object as defined in xAPI.
+- `sessionid` - required - Unique identifier for a single AU launch session based on actor and course registration.
+- `auth-token` - required - Authorization token used in all xAPI communications with the LMS.

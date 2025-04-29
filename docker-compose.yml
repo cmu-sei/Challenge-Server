@@ -36,17 +36,14 @@ services:
     # - token2="YourToken2"
     # - token3="YourToken3"
     # - token4="YourToken4"
-    # - CS_XAPI_ENABLED='false'
-    # - CS_XAPI_VARIABLES_LOCATION='env'
-    # # All CMI5 environment variables below must be automatically filled by your LMS rather than hardcoded below
+    # - CS_CMI5_ENABLED='false'
     # - CS_CMI5_ENDPOINT=''
     # - CS_CMI5_REGISTRATION=''
-    # - CS_CMI5_FETCH=''
     # - CS_CMI5_SESSIONID=''
     # - CS_CMI5_ACTIVITYID=''
     # - CS_CMI5_AUTH=''
     # - CS_CMI5_ACTOR=''
-    # - CS_CMI5_CONTEXT=''
+    # - CS_CMI5_CONTEXTTEMPLATE=''
 
     # # Optional: load all env vars from a file instead of listing individually above
     # env_file:

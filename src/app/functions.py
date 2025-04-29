@@ -9,7 +9,7 @@
 #
 
 
-import yaml, os, subprocess, requests, datetime, json, sys, ipaddress, uuid, copy, base64, isodate, binascii
+import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
 from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
@@ -17,6 +17,7 @@ from time import sleep
 from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
+from app.cmi5 import cmi5_load_variables,cmi5_send_completed,cmi5_send_answered
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -301,19 +302,12 @@ def read_config(app):
     if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
 
-    globals.xapi_enabled = get_clean_env('CS_XAPI_ENABLED', '').lower() == 'true' or (conf.get('xapi') or {}).get('enabled') or False
-    logger.info(f"xAPI enabled: {globals.xapi_enabled}")
+    globals.cmi5_enabled = get_clean_env('CS_CMI5_ENABLED', '').lower() == 'true' or (conf.get('cmi5') or {}).get('enabled') or False
+    logger.info(f"CMI5 enabled: {globals.cmi5_enabled}")
 
-    globals.xapi_variables_location = get_clean_env('CS_XAPI_VARIABLES_LOCATION') or (conf.get('xapi') or {}).get('variables_location') or 'env'
-    if globals.xapi_variables_location not in ['env', 'guestinfo']:
-        logger.error(f"xAPI variable location: {globals.xapi_variables_location} is not valid. Must be 'env' or 'guestinfo'.")
-        sys.exit(1)
-    logger.info(f"xAPI variable source: {globals.xapi_variables_location}")
-
-    if globals.xapi_enabled:
-        globals.xapi_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        # Load xAPI vars if xAPI is enabled
-        load_xapi_variables()
+    if globals.cmi5_enabled:
+        globals.cmi5_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        cmi5_load_variables(conf)
 
 def check_questions():
     with current_app.app_context():
@@ -329,7 +323,8 @@ def check_questions():
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
-            send_completed_xapi()
+            if globals.cmi5_enabled:
+                cmi5_send_completed()
 
 
 def get_current_phase():
@@ -359,26 +354,30 @@ def update_db(type_q,label=None, val=None):
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
                 if (val != None) and ('--' in val):
-                    cur_question.response = val.split('--',1)[1]
-                if ('--' not in val) and (cur_question.response == ''):
+                    user_response, user_answer = val.split('--', 1)
+                    cur_question.response = user_response
+                if (val is None or '--' not in val) and (cur_question.response == ''):
                     cur_question.response = "N/A"
                 was_solved = cur_question.solved
+
+                part_info = globals.grading_parts.get(label, {})
+                question_text = part_info.get('text', '')
+                question_mode = part_info.get('mode', '')
+                question_opts = {}
+                if question_mode == 'mc':
+                    question_opts = part_info.get('opts', {})
+                user_response = cur_question.response
+
                 if "success" in val.lower():
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    # xAPI: If newly solved, send question-level 'passed' statement
-                    if not was_solved:
-                        part_info = globals.grading_parts.get(label, {})
-                        question_text = part_info.get('text', '')
-                        user_response = cur_question.response
-                        send_question_statement(label, question_text, True)
+                    # CMI5: If newly solved, send question-level 'answered' statement with success set to True
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, True)
                 else:
-                    # xAPI: If newly failed, send question-level 'failed' statement
-                    if not was_solved:
-                        part_info = globals.grading_parts.get(label, {})
-                        question_text = part_info.get('text', '')
-                        user_response = cur_question.response
-                        send_question_statement(label, question_text, False)
+                    # CMI5: If newly failed, send question-level 'answered' statement with success set to False
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, False)
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")
@@ -493,8 +492,9 @@ def do_grade(args):
                 logger.info(f"Grading script, {globals.manual_grading_script}, did not yield a result for grading part {grading_key}. Assigning value of 'Failed'")
                 results[grading_key] = "Failed"
 
-    for k,v in results.items():
-        update_db('q',k,v)
+    for k, v in results.items():
+        user_input = grade_args.get(k, "")
+        update_db('q', k, f"{v}--{user_input}")
 
     return get_results(results)
 
@@ -876,260 +876,3 @@ def record_solves():
                         new_event = EventTracker(data=json.dumps(cur_data))
                         db.session.add(new_event)
             db.session.commit()
-
-
-#######
-# xAPI/CMI5 Functions
-#######
-
-def base64_decode(value):
-    if not value or not isinstance(value, str):
-        return value
-    try:
-        return base64.b64decode(value, validate=True).decode("utf-8")
-    except (binascii.Error, UnicodeDecodeError):
-        return value
-
-def load_xapi_variables():
-    """
-    Loads xAPI values into globals
-    """
-    globals.xapi_endpoint     = read_xapi_value('CS_CMI5_ENDPOINT')
-    if globals.xapi_endpoint and globals.xapi_endpoint.endswith('/'):
-        globals.xapi_endpoint = globals.xapi_endpoint.rstrip('/')
-    globals.xapi_registration = read_xapi_value('CS_CMI5_REGISTRATION')
-    globals.xapi_fetch        = read_xapi_value('CS_CMI5_FETCH')
-    globals.xapi_session_id   = read_xapi_value('CS_CMI5_SESSIONID')
-    globals.xapi_activity_id  = read_xapi_value('CS_CMI5_ACTIVITYID')
-    globals.xapi_auth_token   = read_xapi_value('CS_CMI5_AUTH')
-
-    # JSON values
-    globals.xapi_actor = read_xapi_value('CS_CMI5_ACTOR', decode_json=True) or {}
-    
-    context = read_xapi_value('CS_CMI5_CONTEXT', decode_json=True) or {}
-    context["registration"] = globals.xapi_registration
-    globals.xapi_context = context
-
-def read_xapi_value(key, decode_json=False):
-    """
-    Reads xAPI-related variables based on location config (env, guestinfo).
-    """
-    location = globals.xapi_variables_location
-
-    value = None
-
-    if location == "env":
-        value = get_clean_env(key)
-
-    elif location == "guestinfo":
-        try:
-            output = subprocess.run(
-                f"vmtoolsd --cmd 'info-get guestinfo.{key}'",
-                shell=True,
-                capture_output=True
-            )
-            if 'no value' not in output.stderr.decode('utf-8').lower():
-                value = output.stdout.decode('utf-8').strip()
-            else:
-                logger.warning(f"[guestinfo] No value found for guestinfo.{key}")
-        except Exception as e:
-            logger.warning(f"[guestinfo] Failed to read guestinfo.{key}: {e}")
-
-    if not value:
-        logger.warning(f"[xAPI] No value found for key: {key} using method: {location}")
-        return None
-
-    original_value = value
-    value = base64_decode(value)
-    if value != original_value:
-        logger.debug(f"[xAPI] Auto base64-decoded {key}: {value}")
-
-    if decode_json:
-        try:
-            return json.loads(value)
-        except Exception as e:
-            logger.error(f"[xAPI] Failed to decode JSON for {key}: {e}")
-            return None
-
-    return value
-
-
-def send_xapi_statement(statement: dict, statement_id: str):
-    """
-    Sends a single xAPI statement
-    """
-    
-    # Uses the same UUID generated in the statement
-    statement["id"] = statement_id
-
-    endpoint = f"{globals.xapi_endpoint}/statements?statementId={statement_id}"
-    
-    headers = {
-        "Content-Type": "application/json",
-        "X-Experience-API-Version": "1.0.3",
-        "Authorization": f"{globals.xapi_auth_token}"
-    }
-
-    try:
-        resp = requests.put(endpoint, json=statement, headers=headers, timeout=5)
-        if resp.status_code not in (204,):
-            logger.error(f"[xAPI] Failed to PUT statement: {resp.status_code} {resp.text}")
-        else:
-            verb_id = statement.get("verb", {}).get("id", "")
-            logger.info(f"[xAPI] Statement PUT successfully (verb={verb_id}, id={statement_id}).")
-    except Exception as e:
-        logger.error(f"[xAPI] Exception sending statement: {e}")
-
-def send_completed_xapi():
-    """
-    Send a CMI5-compliant 'completed' statement at the AU level.
-    """
-    if not globals.xapi_enabled:
-        return
-
-    now = datetime.datetime.now(datetime.timezone.utc)
-    statement_id = str(uuid.uuid4())
-    au_id = f"{globals.xapi_activity_id}"
-
-    session_start = globals.xapi_au_start_time
-    if isinstance(session_start, str):
-        session_start = datetime.datetime.fromisoformat(session_start)
-
-    duration_seconds = (now - session_start).total_seconds()
-    duration = datetime.timedelta(seconds=duration_seconds)
-    iso_duration = isodate.duration_isoformat(duration)
-
-    statement = {
-        "id": statement_id,
-        "actor": globals.xapi_actor,
-        "verb": {
-            "id": "http://adlnet.gov/expapi/verbs/completed",
-            "display": {"en-US": "completed"}
-        },
-        "object": {
-            "id": au_id,
-            "objectType": "Activity",
-            "definition": {
-                "name": {"en-US": globals.challenge_name},
-                "description": {"en-US": "All questions solved"},
-                "type": "http://adlnet.gov/expapi/activities/lesson"
-            }
-        },
-        "result": {
-            "completion": True,
-            "duration": iso_duration
-        },
-        "context": get_cmi5_defined_context([
-            "https://w3id.org/xapi/cmi5/context/categories/cmi5",
-            "https://w3id.org/xapi/cmi5/context/categories/moveon"
-        ]),
-        "timestamp": now.isoformat()
-    }
-    send_xapi_statement(statement, statement_id)
-    send_terminated_xapi()
-
-
-def send_terminated_xapi():
-    """
-    Send a CMI5-compliant 'terminated' statement at the AU level when session ends.
-    """
-    if not globals.xapi_enabled:
-        return
-
-    now = datetime.datetime.now(datetime.timezone.utc)
-    statement_id = str(uuid.uuid4())
-    au_id = f"{globals.xapi_activity_id}"
-
-    session_start = globals.xapi_au_start_time
-    if isinstance(session_start, str):
-        session_start = datetime.datetime.fromisoformat(session_start)
-
-    duration_seconds = (now - session_start).total_seconds()
-    duration = datetime.timedelta(seconds=duration_seconds)
-    iso_duration = isodate.duration_isoformat(duration)
-
-    statement = {
-        "id": statement_id,
-        "actor": globals.xapi_actor,
-        "verb": {
-            "id": "http://adlnet.gov/expapi/verbs/terminated",
-            "display": {"en-US": "terminated"}
-        },
-        "object": {
-            "id": au_id,
-            "objectType": "Activity",
-            "definition": {
-                "name": {"en-US": globals.challenge_name},
-                "type": "http://adlnet.gov/expapi/activities/lesson"
-            }
-        },
-        "result": {
-            "duration": iso_duration
-        },
-        "context": get_cmi5_defined_context([
-            "https://w3id.org/xapi/cmi5/context/categories/cmi5"
-        ]),
-        "timestamp": now.isoformat()
-    }
-    send_xapi_statement(statement, statement_id)
-
-
-def send_question_statement(question_label: str, question_text: str, success: bool):
-    """
-    Send a question-level 'answered' statement with result.
-    """
-    if not globals.xapi_enabled:
-        return
-
-    statement_id = str(uuid.uuid4())
-    now = datetime.datetime.now(datetime.timezone.utc)
-    au_id = f"{globals.xapi_activity_id}"
-
-    statement = {
-        "id": statement_id,
-        "actor": globals.xapi_actor,
-        "verb": {
-            "id": "http://adlnet.gov/expapi/verbs/answered",
-            "display": {"en-US": "answered"}
-        },
-        "object": {
-            "objectType": "Activity",
-            "id": au_id,
-            "definition": {
-                "name": {"en-US": question_label},
-                "description": {"en-US": question_text}
-            }
-        },
-        "result": {
-            "success": success
-        },
-        "context": globals.xapi_context,
-        "timestamp": now.isoformat()
-    }
-
-    send_xapi_statement(statement, statement_id)
-
-def get_cmi5_defined_context(categories=None):
-    """
-    Appends required categories activities to the context 
-    """
-    context = copy.deepcopy(globals.xapi_context)
-
-    if categories is None:
-        categories = []
-
-    if "contextActivities" not in context:
-        context["contextActivities"] = {}
-
-    existing_category = context["contextActivities"].get("category", [])
-    existing_ids = {act.get("id") for act in existing_category}
-
-    for category_id in categories:
-        if category_id not in existing_ids:
-            existing_category.append({
-                "id": category_id,
-                "objectType": "Activity"
-            })
-
-    context["contextActivities"]["category"] = existing_category
-    return context

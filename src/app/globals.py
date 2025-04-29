@@ -99,14 +99,12 @@ class Globals():
         ## Scheduler is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
         self.challenge_name = ""
-        self.xapi_enabled = False
-        self.xapi_variables_location = ""
-        self.xapi_au_start_time = ""
-        self.xapi_endpoint = ""
-        self.xapi_registration = ""
-        self.xapi_fetchUrl = ""
-        self.xapi_auth_token = ""
-        self.xapi_actor = {}
-        self.xapi_session_id = ""
-        self.xapi_context = {}
-        self.xapi_activity_id = ""
+        self.cmi5_enabled = False
+        self.cmi5_au_start_time = ""
+        self.cmi5_endpoint = ""
+        self.cmi5_registration = ""
+        self.cmi5_auth_token = ""
+        self.cmi5_actor = {}
+        self.cmi5_sessionid = ""
+        self.cmi5_context = {}
+        self.cmi5_activityid = ""

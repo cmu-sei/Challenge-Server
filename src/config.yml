@@ -125,6 +125,12 @@ grading:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-# xapi:
+# cmi5:
 #   enabled: false
-#   variables_location: env
+#   endpoint: ""
+#   registration: ""
+#   activityid: ""
+#   actor: ''
+#   sessionid: ""
+#   contextTemplate: ''
+#   auth-token: ""
