@@ -4,7 +4,7 @@ import sys
 from zipfile import ZipFile
 
 
-def grade_folder_archive(archive_path):
+def grade_archive(archive_path):
     file_contents = []
     if os.path.isfile(archive_path):
         with ZipFile(archive_path) as arc:
@@ -22,7 +22,7 @@ def grade(submission=None):
     results = {}
 
     for check, value in submission.items():
-        results[check] = grade_folder_archive(value)
+        results[check] = grade_archive(value)
 
     return results
 
