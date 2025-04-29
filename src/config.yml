@@ -70,7 +70,7 @@ grading:
   manual_grading: true
   manual_grading_script: manualGradingExample.py
   # manual_grading_script: manualPhasedGradingExample.py # Use this example when doing phased-grading
-  # manual_grading_script: fileUploadExample.py
+  # manual_grading_script: fileUploadExample.py  # Use this example when doing file upload grading
   cron_grading: false
   cron_grading_script: null
   cron_interval: 5
@@ -85,7 +85,7 @@ grading:
     grader_url: ""
     grader_key: ""
 
-# This is a non-phased example
+  # This is a non-phased example
   parts:
     GradingCheck1:
       token_name: token1
@@ -107,7 +107,6 @@ grading:
       token_name: token4
       text: "Question 4: Enter 'test4' to pass"
       mode: text
-
   phases: false
 
   # This is a phased example
@@ -125,12 +124,12 @@ grading:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-  # Example for multi-file upload submissions.
+  # This is a multi-file upload example
   # uploads:
   #   files:
-  #     fileset1: 
+  #     fileset1:
   #       text: "Submission for parts 1, 2, and 3"
-  #     fileset2: 
+  #     fileset2:
   #       text: "Submission for parts 4, 5, and 6"
   #   format: zip # Archive format to save each folder as - "zip" is the only one for now.
   #   max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.

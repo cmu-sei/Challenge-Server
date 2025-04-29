@@ -33,7 +33,7 @@ DM24-0645
             <thead class="res-thead">
                 <th class="q_item1"><label>Task(s)</label></th>
                 <th class="q_item2"><label>File(s)</label></th>
-                <th class="q_item3"><label>Last Submission</label></th>
+                <th class="q_item3"><label>Last Upload</label></th>
             </thead>
             {% for key, value in questions['new_uploads'].items() %}
             <tr class="bodypost">
@@ -95,7 +95,8 @@ DM24-0645
             {% endif %}
             {% if 'upload' in questions.keys() %}
             <tr class="bodypost">
-                <th colspan=2 class="q_long_line">Tasks below will be auto-graded with submitted files</th>
+                <th colspan=2 class="q_long_line">Tasks below will be graded using uploaded files when "Submit" is
+                    pressed</th>
             </tr>
             {% for key, value in questions['upload'].items() %}
             <tr class="bodypost">
@@ -127,4 +128,3 @@ DM24-0645
 </fieldset>
 {% endif %}
 {% endblock %}
-
