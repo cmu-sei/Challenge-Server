@@ -32,7 +32,7 @@ DM24-0645
         <form id="uploadForm" method="POST" action="{{url_for('main.upload')}}" enctype="multipart/form-data">
             <thead class="res-thead">
                 <th class="q_item1"><label>Task(s)</label></th>
-                <th class="q_item2"><label>File(s)</label></th>
+                <th class="q_item2"><label>Folder</label></th>
                 <th class="q_item3"><label>Last Submission</label></th>
             </thead>
             {% for key, value in questions['new_uploads'].items() %}

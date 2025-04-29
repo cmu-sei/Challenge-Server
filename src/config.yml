@@ -125,43 +125,43 @@ grading:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-  # Example for file upload submissions.
+  # Example for folder upload submissions.
   # uploads:
   #   files:
-  #     file1: 
+  #     folder1: 
   #       text: "Submission for parts 1, 2, and 3"
-  #     file2: 
+  #     folder2: 
   #       text: "Submission for parts 4, 5, and 6"
-  #   format: zip # Archive format to save each file bundle as - "zip" is the only one for now.
+  #   format: zip # Archive format to save each folder as - "zip" is the only one for now.
   #   max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
   # parts:
   #   GradingCheck1:
   #     token_name: token1
   #     text: "Question 1: Implement the `part1()` function"
-  #     upload_key: file1
+  #     upload_key: folder1
   #     mode: upload
   #   GradingCheck2:
   #     token_name: token2
   #     text: "Question 2: Implement the `part2()` function"
-  #     upload_key: file1
+  #     upload_key: folder1
   #     mode: upload
   #   GradingCheck3:
   #     token_name: token3
   #     text: "Question 3: Implement the `part3()` function"
-  #     upload_key: file1
+  #     upload_key: folder1
   #     mode: upload
   #   GradingCheck4:
   #     token_name: token4
   #     text: "Question 4: Implement the `part4()` function"
-  #     upload_key: file2
+  #     upload_key: folder2
   #     mode: upload
   #   GradingCheck5:
   #     token_name: token5
   #     text: "Question 5: Implement the `part5()` function"
-  #     upload_key: file2
+  #     upload_key: folder2
   #     mode: upload
   #   GradingCheck6:
   #     token_name: token6
   #     text: "Question 6: Implement the `part6()` function"
-  #     upload_key: file2
+  #     upload_key: folder2
   #     mode: upload
