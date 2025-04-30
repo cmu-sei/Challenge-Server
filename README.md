@@ -114,7 +114,7 @@ The Challenge Server allows users to upload files for grading. This type of grad
 
 When files are uploaded, the Challenge Server first zips files that are part of the same file set. This allows users to select multiple files to upload, and results in a single zip file being stored on the Challenge Server after upload.
 
-When using the file upload grading type, multiple grading checks can be associated with the same file and multiple files can be associated with one grading check. When uploaded files are associated with a grading check, the Challenge Server will pass the path to the file sets to the grading script as positional arguments.
+When using the file upload grading type, multiple grading checks can be associated with the same file and multiple files can be associated with one grading check. When uploaded files are associated with a grading check, the Challenge Server will include the path to the file sets as part of the JSON passed to the grading script as an argument.
 
 ##### Example
 
