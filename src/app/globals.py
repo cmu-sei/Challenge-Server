@@ -23,8 +23,8 @@ class Globals():
         self.app_key = None
 
         # From config.yml
-        self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single', 'mc']
-        self.MANUAL_MODE = ['button', 'text', 'text_single', 'mc']
+        self.VALID_CONFIG_MODES = ['button', 'cron', 'text', 'text_single', 'mc', 'upload']
+        self.MANUAL_MODE = ['button', 'text', 'text_single', 'mc', 'upload']
         self.VALID_TOKEN_LOCATIONS = ['env', 'guestinfo', 'file']
         self.VALID_SUBMISSION_METHODS = ['display', 'grader_post']
         self.VALID_SERVICE_TYPES = ['ping', 'socket', 'web']
@@ -32,6 +32,7 @@ class Globals():
         self.basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.custom_script_dir = f"{self.basedir}/custom_scripts"
         self.hosted_file_directory = f"{self.basedir}/hosted_files"
+        self.uploaded_file_directory = f"{self.basedir}/uploaded_files"
         self.yaml_path =  f"{self.basedir}/config.yml"
         # configuration globals
         challenge_id = get_clean_env('CS_ISOLATION_TAG', '')
@@ -60,6 +61,7 @@ class Globals():
         self.challenge_completion_time = ""
         self.info_home_enabled = False
         self.services_home_enabled = False
+        self.port_checker = False
         # submission globals
         self.grader_url = ""
         self.grader_key = ""
@@ -98,3 +100,13 @@ class Globals():
         ## Scheduler is referenced when add/pausing/deleting jobs.
         self.scheduler = APScheduler()
         self.challenge_name = ""
+        self.cmi5_enabled = False
+        self.cmi5_au_start_time = ""
+        self.cmi5_endpoint = ""
+        self.cmi5_registration = ""
+        self.cmi5_auth_token = ""
+        self.cmi5_actor = {}
+        self.cmi5_sessionid = ""
+        self.cmi5_context = {}
+        self.cmi5_activityid = ""
+        self.grading_uploads = {}

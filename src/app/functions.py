@@ -14,9 +14,11 @@ from flask import current_app
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
-from app.extensions import logger, globals, db
+from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
+from app.cmi5 import cmi5_load_variables,cmi5_send_completed,cmi5_send_answered
+from app.fileUploads import get_most_recent_file
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -81,6 +83,7 @@ def read_config(app):
         sys.exit(1)
     globals.app_key = key_path
 
+    globals.port_checker = get_clean_env('CS_PORT_CHECKER', '').lower() == 'true'or conf.get('port_checker') or False
 
     # set grading enabled. False if not set in env vars or config file
     globals.grading_enabled = get_clean_env('CS_GRADING_ENABLED', '').lower() == 'true' or (conf.get('grading') or {}).get('enabled') or False
@@ -99,6 +102,27 @@ def read_config(app):
 
         globals.grading_parts = conf['grading']['parts']
         globals.grader_post = get_clean_env('CS_GRADER_POST', '').lower() == 'true' or conf['grading'].get('grader_post') or False
+
+        globals.grading_uploads.update(conf['grading'].get('uploads', {}))
+        if 'files' in globals.grading_uploads:
+            files = globals.grading_uploads['files']
+            max_upload_size = globals.grading_uploads.setdefault('max_upload_size', '1M')
+            match max_upload_size[-1]:
+                case 'G':
+                    multiplier = 1024 * 1024 * 1024
+                case 'M':
+                    multiplier = 1024 * 1024
+                case 'K':
+                    multiplier = 1024
+                case _:
+                    multiplier = 1
+            try:
+                size_value = int(max_upload_size[:-1])
+            except ValueError:
+                logger.error(f"Max upload size {max_upload_size} should end with G, M, K, or a numeric value.")
+                sys.exit(1)
+            app.config['MAX_CONTENT_LENGTH'] = size_value * multiplier
+
 
         # Initialize phases & add to DB
         with app.app_context():
@@ -300,6 +324,12 @@ def read_config(app):
     if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
 
+    globals.cmi5_enabled = get_clean_env('CS_CMI5_ENABLED', '').lower() == 'true' or (conf.get('cmi5') or {}).get('enabled') or False
+    logger.info(f"CMI5 enabled: {globals.cmi5_enabled}")
+
+    if globals.cmi5_enabled:
+        globals.cmi5_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        cmi5_load_variables(conf)
 
 def check_questions():
     with current_app.app_context():
@@ -315,6 +345,8 @@ def check_questions():
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
+            if globals.cmi5_enabled:
+                cmi5_send_completed()
 
 
 def get_current_phase():
@@ -344,12 +376,30 @@ def update_db(type_q,label=None, val=None):
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
                 if (val != None) and ('--' in val):
-                    cur_question.response = val.split('--',1)[1]
-                if ('--' not in val) and (cur_question.response == ''):
+                    user_response, user_answer = val.split('--', 1)
+                    cur_question.response = user_response
+                if (val is None or '--' not in val) and (cur_question.response == ''):
                     cur_question.response = "N/A"
+                was_solved = cur_question.solved
+
+                part_info = globals.grading_parts.get(label, {})
+                question_text = part_info.get('text', '')
+                question_mode = part_info.get('mode', '')
+                question_opts = {}
+                if question_mode == 'mc':
+                    question_opts = part_info.get('opts', {})
+                user_response = cur_question.response
+
                 if "success" in val.lower():
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    # CMI5: If newly solved, send question-level 'answered' statement with success set to True
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, True)
+                else:
+                    # CMI5: If newly failed, send question-level 'answered' statement with success set to False
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, False)
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")
@@ -373,7 +423,7 @@ def update_db(type_q,label=None, val=None):
                             num_q -= 1
                     if num_q == 0:
                         phase.solved = True
-                        phase.time_solved =datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        phase.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         db.session.commit()
                     else:
                         globals.current_phase = phase.label
@@ -395,9 +445,14 @@ def do_grade(args):
         if (ques not in globals.grading_parts.keys()) or (globals.grading_parts[ques]['mode'] not in globals.VALID_CONFIG_MODES):
             logger.debug(f"The key {ques} is not a a grading key/mode. Skipping")
             continue
-        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] != "button"):
-            index = int(ques[-1])
+        index = int(ques[-1])
+        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] not in ("button", "upload")):
             manual_grading_list.insert(index,{ques:ans})
+        elif globals.grading_parts[ques]['mode'] == "upload":
+            file_key = globals.grading_parts[ques]['upload_key']
+            saved_archive = get_most_recent_file(file_key, path=True)
+            manual_grading_list.insert(index,{ques:saved_archive})
+
 
     script_path = os.path.join(globals.custom_script_dir, globals.manual_grading_script)
     _, ext = os.path.splitext(script_path)
@@ -425,6 +480,7 @@ def do_grade(args):
             return get_results(results)
 
     try:
+        logger.info(f"Grading command is: {grade_cmd}")
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
         logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')
@@ -464,8 +520,9 @@ def do_grade(args):
                 logger.info(f"Grading script, {globals.manual_grading_script}, did not yield a result for grading part {grading_key}. Assigning value of 'Failed'")
                 results[grading_key] = "Failed"
 
-    for k,v in results.items():
-        update_db('q',k,v)
+    for k, v in results.items():
+        user_input = grade_args.get(k, "")
+        update_db('q', k, f"{v}--{user_input}")
 
     return get_results(results)
 
@@ -504,6 +561,7 @@ def done_grading(future: Future):
     '''
     Callback function for do_grade.
     Checks to see if the results need to be PUT to the grading server
+    Saves solves to the database
     '''
     results, tokens = future.result()
     logger.info(f"Server sees {globals.manual_grading_script} results as: {results}")
@@ -512,6 +570,9 @@ def done_grading(future: Future):
     # save results and tokens so they can be accessed globally
     globals.manual_results = results
     globals.tokens['manual'] = tokens
+
+    # record solves to the database
+    globals.scheduler.add_job(id="Record_Solves",func=record_solves)
 
     if globals.grader_post:
         post_submission(tokens)
@@ -698,6 +759,8 @@ def run_cron_thread():
         if globals.grader_post:
             post_submission(tokens)
         logger.info(f"Results of cron grading attempt number {cron_attempts}: {globals.cron_results}")
+        # record solves to the database
+        globals.scheduler.add_job(id="Record_Solves",func=record_solves)
         sleep(globals.cron_interval)
     logger.info(f"The number of grading attempts ({limit}) has been exhausted. No more grading will take place.")
 
@@ -821,22 +884,23 @@ def get_logs(service):
 
 
 def record_solves():
-    with globals.scheduler.app.app_context():
-        objs = {
-            "Question Solved": QuestionTracking.query.all(),
-            "Phase Solved":PhaseTracking.query.all()
-        }
-        for k,v in objs.items():
-            for q in v:
-                if q.solved == True:
-                    cur_data = {
-                        "challenge":globals.challenge_name,
-                        "support_code":globals.support_code,
-                        "event_type":k,
-                        k: q.label,
-                        "solved_at": q.time_solved,
-                        "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    }
-                    new_event = EventTracker(data=json.dumps(cur_data))
-                    db.session.add(new_event)
-                    db.session.commit()
+    with record_solves_lock:
+        with globals.scheduler.app.app_context():
+            objs = {
+                "Question Solved": QuestionTracking.query.all(),
+                "Phase Solved":PhaseTracking.query.all()
+            }
+            for k,v in objs.items():
+                for q in v:
+                    if q.solved == True:
+                        cur_data = {
+                            "challenge":globals.challenge_name,
+                            "support_code":globals.support_code,
+                            "event_type":k,
+                            k: q.label,
+                            "solved_at": q.time_solved,
+                            "recorded_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        new_event = EventTracker(data=json.dumps(cur_data))
+                        db.session.add(new_event)
+            db.session.commit()

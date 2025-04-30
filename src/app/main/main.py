@@ -13,6 +13,7 @@ import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
 from app.extensions import logger, globals
 from app.functions import do_grade, check_questions,read_token
+from app.fileUploads import save_uploaded_file, get_most_recent_uploads
 from app.models import QuestionTracking
 
 main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
@@ -40,8 +41,33 @@ def tasks():
                 parts_org[q_mode][key] = value
         else:
             parts_org[q_mode][key] = value
+    if globals.grading_uploads and 'files' in globals.grading_uploads:
+        files = globals.grading_uploads['files']
+        parts_org['new_uploads'] = files
+        parts_org['existing_uploads'] = get_most_recent_uploads(files.keys())
+
     return render_template('tasks.html', questions=parts_org)
 
+@main.route('/upload', methods=['POST'])
+def upload():
+    '''
+    Handle saving submitted files.
+    '''
+    for file_key in globals.grading_uploads['files']:
+        uploaded = list(
+            filter(
+                lambda f: f.filename != '',
+                request.files.getlist(file_key),
+            )
+        )
+        logger.info(f"User file upload: {file_key} - {uploaded}")
+        if not uploaded:
+            continue
+
+        zip_path = save_uploaded_file(file_key, uploaded)
+
+
+    return tasks()
 
 @main.route('/grade', methods=['GET', 'POST'])
 def grade():
@@ -84,7 +110,11 @@ def grade():
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
             logger.info(f"Calling do_grade with data: {req_data}")
-            globals.task = globals.executor.submit(do_grade, req_data)
+
+            # Make sure the grading script gets all grading check keys even if the user didn't enter anything.
+            user_did_not_submit = {check_name: '' for check_name in globals.grading_parts}
+
+            globals.task = globals.executor.submit(do_grade, user_did_not_submit | req_data)
 
         return render_template('grading.html', submit_time=globals.manual_submit_time)
 

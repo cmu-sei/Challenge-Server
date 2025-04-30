@@ -9,6 +9,11 @@ This document explains each setting in the [config.yml](./config.yml).
 - `tls_cert` - Certificate to use for HTTPS (defaults to None)
 - `tls_key` - Private key for the HTTPS cert above (defaults to None)S
 
+## port_checker
+
+- When set to true, this enables a feature that will use the `ss` command to log all open ports on the system every 30 seconds.
+- Defaults to false.
+
 ## challenge_name
 
 - Name of the challenge
@@ -149,10 +154,12 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
   - `text` - Provide the user with a text box to submit an answer.
   - `button` - Provides a button to trigger the grading script.
   - `cron` - Grade automatically on the configured schedule (see `cron_grading` settings).
+  - `upload` - Allow users to upload files that are processed by the grading script.
+    - `upload_key` - Define a set of files that an uploaded file should belong to. This is useful if multiple grading checks are looking at the same file or if multiple uploaded files are associated with one grading check. This value will be used to generate the name of the saved artifact.
   - `mc` - Multiple Choice question.
-  - `opts` -- Multiple choice options. Only applies when question mode is `mc`.
-    - Keys start at `a` and continue in alphabetical order.
-    - Values are the text for each option.
+    - `opts` -- Multiple choice options. Only applies when question mode is `mc`.
+      - Keys start at `a` and continue in alphabetical order.
+      - Values are the text for each option.
 
 ### phases (question sets)
 
@@ -166,3 +173,27 @@ A phase cannot be viewed until the previous phase has been completed. This is to
   - Best practice is to name phases with `phase` followed by a number (e.g., `phase1`, `phase2`, etc.).
 
 Examples can be found in the `config.yml` file.
+
+## CMI5
+
+CMI5 configuration allows the Challenge Server to send "cmi5 defined" and "cmi5 allowed" statements.
+
+- `enabled`
+  - Set to `true` to enable sending CMI5 statements to an LRS.
+  - `false` disables all CMI5 functionality.
+- `endpoint` - required - URL to the LMS listener location.
+  - Parsed from the Launch URL.
+  - Must be an URL-encoded URL.
+- `registration` - required - Registration ID corresponding to the learner's enrollment for the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an UUID.
+- `activityid` - required - Activity ID of the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an IRI.
+- `actor` - required - JSON object of objectType of Agent (as defined in xAPI) that identifies the learner launching the AU so the AU will be able to include it in xAPI requests.
+  - Parsed from the Launch URL.
+  - Must be a JSON object.
+- `contextTemplate` - required - contextTemplate for the AU being launched.
+  - Must be a JSON context object as defined in xAPI.
+- `sessionid` - required - Unique identifier for a single AU launch session based on actor and course registration.
+- `auth-token` - required - Authorization token used in all xAPI communications with the LMS.

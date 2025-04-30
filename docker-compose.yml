@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8888:8888"
-    # environment:
     # List environment variable configurations here
+    # environment:
     # - CS_APP_CERT='/path/to/tls/cert'
     # - CS_APP_HOST='0.0.0.0'
     # - CS_APP_KEY='/path/to/tls/key'
@@ -28,6 +28,7 @@ services:
     # - CS_INFO_HOME_ENABLED='true'
     # - CS_MANUAL_GRADING_SCRIPT="manualGradingExample.py"
     # - CS_MANUAL_GRADING='true'
+    # - CS_PORT_CHECKER='false'
     # - CS_SERVICES_HOME_ENABLED='true'
     # - CS_SUBMISSION_METHOD='display'
     # - CS_TOKEN_LOCATION='env'
@@ -35,8 +36,16 @@ services:
     # - token2="YourToken2"
     # - token3="YourToken3"
     # - token4="YourToken4"
+    # - CS_CMI5_ENABLED='false'
+    # - CS_CMI5_ENDPOINT=''
+    # - CS_CMI5_REGISTRATION=''
+    # - CS_CMI5_SESSIONID=''
+    # - CS_CMI5_ACTIVITYID=''
+    # - CS_CMI5_AUTH=''
+    # - CS_CMI5_ACTOR=''
+    # - CS_CMI5_CONTEXTTEMPLATE=''
 
-    # Optional: load all env vars from a file instead of listing individually above
+    # # Optional: load all env vars from a file instead of listing individually above
     # env_file:
     # - .env
     volumes:

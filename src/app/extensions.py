@@ -14,10 +14,12 @@
 
 import logging
 from flask_sqlalchemy import SQLAlchemy
+from threading import Lock
 from app.globals import Globals
 
-# Create database object, currently unused
+# Create database object
 db = SQLAlchemy()
+record_solves_lock = Lock()
 
 # Instantiate globals object
 globals = Globals()

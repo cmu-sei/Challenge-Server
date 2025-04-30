@@ -103,7 +103,24 @@ There are several types of grading that are supported by this server.
   - In this style of grading, the user is not expected to take any action for grading to occur. Grading happens on an interval and/or at a scheduled time
   - Additional config settings maybe be required for this style to operate to your challenge's specs.
 
-More information about using each grading type is provided in the comments of the [config](./src/config.yml) file.
+More information about using each grading type is provided in the [supplemental readme](./src/README.md).
+
+#### Uploading Files
+
+The Challenge Server allows users to upload files for grading. This type of grading is useful for:
+
+1. Programming exercises where running the user-supplied code can determine if they have met the success conditions
+2. Exercises where parsing a file can determine if the user has met the success conditions
+
+When files are uploaded, the Challenge Server first zips files that are part of the same file set. This allows users to select multiple files to upload, and results in a single zip file being stored on the Challenge Server after upload.
+
+When using the file upload grading type, multiple grading checks can be associated with the same file and multiple files can be associated with one grading check. When uploaded files are associated with a grading check, the Challenge Server will include the path to the file sets as part of the JSON passed to the grading script as an argument.
+
+##### Example
+
+A challenge requires a user to write a Python program that produces an expected output. The user uploads their Python program, consisting of multiple `.py` files in a format that follows the challenge instructions. The grading script will run the Python program in the way that the challenge developer described in the instructions to determine if the uploaded program meets the requirements.
+
+_Caution: Running user-uploaded code can be dangerous. The challenge developer should take necessary security precautions to ensure user-uploaded code/files do not have unintended consequences._
 
 ### Grading Scripts
 
@@ -153,3 +170,21 @@ This server supports 2 methods for grading results.
 ## Hosting Files
 
 This server can be used to host any files you need to share with the competitor inside the challenge environment. To host files, place the files in the [hosted_files](./src/hosted_files/) directory.  This will allow competitors to download the files from inside their challenge environment.
+
+## xAPI/CMI5
+
+The Challenge Server can send [xAPI](https://xapi.com/)/[CMI5](https://xapi.com/cmi5/) compliant statements to a configured [Learning Record Store (LRS)](https://xapi.com/get-lrs/). Using this feature requires configuring variables that are used to communicate with the LRS (see the [supplemental readme](./src/README.md) for configuration details).
+
+1. When a user submits for grading, the Challenge Server will send a [CMI5 Allowed Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: `answered`
+  b. Question and answer details, including question, question mode (text, multiple choice, etc.), answers, etc.
+  c. [Interaction type](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#interaction-types) is set according to the configured question mode
+    i. `text` mode maps to the `fill-in` xAPI interaction type
+    ii. `mc` mode maps to the `choice` xAPI interaction type
+    iii. All other grading modes map to the `performance` xAPI interaction type
+2. When a user correctly answers all questions, the Challenge Server will send a [CMI5 Defined Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: [completed](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#verbs_completed)
+  b. The `challenge_name` is used as the statement Object Name.
+3. When a user correctly answers all questions, the Challenge Server will send a [CMI5 Defined Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: [terminated](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#verbs_terminated)
+  b. The `challenge_name` is used as the statement Object Name.

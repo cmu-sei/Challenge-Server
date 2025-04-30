@@ -54,12 +54,14 @@ def create_app(config_class=Config):
         def store_req():
             if (not str(request.path).endswith('.js')) and (not str(request.path).endswith('.css')) and (not str(request.path).endswith('update')):
                 with app.app_context():
-                    event = "Request" if request.method == 'GET' else 'Submission'
+                    event = (
+                        "Request" if request.method == 'GET'
+                        else "Upload" if "upload" in str(request.path)
+                        else "Submission"
+                    )
                     form_data = "No Data Submitted"
                     if len(form_data) > 0:
                         form_data = dict(request.form)
-                        if 'submit' in form_data.keys():
-                            del form_data['submit']
                         for k, v in request.form.items():
                             if k != 'submit':
                                 form_data[f"{k}_text"] = globals.grading_parts[k]['text']
@@ -82,10 +84,10 @@ def create_app(config_class=Config):
                             cur_cnt['number_submissions'] = str(int(cur_cnt['number_submissions'])+1)
                             cur_cnt['recorded_at'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             sub_obj.data = json.dumps(cur_cnt)
-                            db.session.commit()
                         except Exception as e:
                             logger.error(f"Exception trying increment submission counter. Exception: {str(e)}")
                             sys.exit(1)
+                    db.session.commit()
     return app
 
 def run_startup_scripts():
@@ -141,9 +143,6 @@ def start_grading_server(app):
             db.session.commit()
 
     globals.scheduler.init_app(app)
-
-    # create a job that runs every 10 seconds and executes the function "record_solves"
-    globals.scheduler.add_job(id="Record_Solves",func=record_solves,trigger="interval",seconds=10)
     globals.scheduler.start()
 
     logger.info(f"Starting the Challenge Server.")

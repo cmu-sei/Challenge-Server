@@ -58,7 +58,9 @@ if __name__ == '__main__':
     globals.server_ready = True # mark server as ready after startup scripts finish
 
     # run a thread that will periodically list the local open ports
-    port_checker_thread = threading.Thread(target=checkLocalPortLoop, name="LocalPortChecker")
+    if globals.port_checker:
+        port_checker_thread = threading.Thread(target=checkLocalPortLoop, name="LocalPortChecker")
+        port_checker_thread.start()
 
     if globals.required_services:
         # run a thread that will periodically check on all required services
@@ -70,5 +72,4 @@ if __name__ == '__main__':
         service_logger_pool = ThreadPoolExecutor(thread_name_prefix="Service_Logger")
         service_logger_pool.map(get_logs, globals.services_list)
 
-    port_checker_thread.start()
     grading_server_thread.join()
