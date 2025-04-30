@@ -44,3 +44,4 @@ nodeLanguageServer.*/**
 dist/**
 src/__pycache__
 src/challenge.db
+pyproject.toml

@@ -70,6 +70,7 @@ grading:
   manual_grading: true
   manual_grading_script: manualGradingExample.py
   # manual_grading_script: manualPhasedGradingExample.py # Use this example when doing phased-grading
+  # manual_grading_script: fileUploadExample.py  # Use this example when doing file upload grading
   cron_grading: false
   cron_grading_script: null
   cron_interval: 5
@@ -84,7 +85,7 @@ grading:
     grader_url: ""
     grader_key: ""
 
-# This is a non-phased example
+  # This is a non-phased example
   parts:
     GradingCheck1:
       token_name: token1
@@ -106,7 +107,6 @@ grading:
       token_name: token4
       text: "Question 4: Enter 'test4' to pass"
       mode: text
-
   phases: false
 
   # This is a phased example
@@ -119,13 +119,52 @@ grading:
   #     token_name: example-token2
   #     text: "Question 2: Enter 'test2' to pass"
   #     mode: text
-
   # phases: true
   # phase_info:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-# cmi5:
+# This is a multi-file upload example
+  # uploads:
+  #   files:
+  #     fileset1:
+  #       text: "Submission for parts 1, 2, and 3"
+  #     fileset2:
+  #       text: "Submission for parts 4, 5, and 6"
+  #   max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
+  # parts:
+  #   GradingCheck1:
+  #     token_name: token1
+  #     text: "Question 1: Implement the `part1()` function"
+  #     upload_key: fileset1
+  #     mode: upload
+  #   GradingCheck2:
+  #     token_name: token2
+  #     text: "Question 2: Implement the `part2()` function"
+  #     upload_key: fileset1
+  #     mode: upload
+  #   GradingCheck3:
+  #     token_name: token3
+  #     text: "Question 3: Implement the `part3()` function"
+  #     upload_key: fileset1
+  #     mode: upload
+  #   GradingCheck4:
+  #     token_name: token4
+  #     text: "Question 4: Implement the `part4()` function"
+  #     upload_key: fileset2
+  #     mode: upload
+  #   GradingCheck5:
+  #     token_name: token5
+  #     text: "Question 5: Implement the `part5()` function"
+  #     upload_key: fileset2
+  #     mode: upload
+  #   GradingCheck6:
+  #     token_name: token6
+  #     text: "Question 6: Implement the `part6()` function"
+  #     upload_key: fileset2
+  #     mode: upload
+  
+  # cmi5:
 #   enabled: false
 #   endpoint: ""
 #   registration: ""

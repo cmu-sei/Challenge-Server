@@ -25,10 +25,32 @@ DM24-0645
     Tasks
 </span>
 
-<form method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data" id="min-top-padding">
-    <fieldset>
-        <!--<legend align='center'>Challenge Questions</legend>-->
-        <table class="res-table">
+<fieldset>
+    <!--<legend align='center'>Challenge Questions</legend>-->
+    {% if 'new_uploads' in questions.keys() %}
+    <table class="res-table">
+        <form id="uploadForm" method="POST" action="{{url_for('main.upload')}}" enctype="multipart/form-data">
+            <thead class="res-thead">
+                <th class="q_item1"><label>Task(s)</label></th>
+                <th class="q_item2"><label>File(s)</label></th>
+                <th class="q_item3"><label>Last Upload</label></th>
+            </thead>
+            {% for key, value in questions['new_uploads'].items() %}
+            <tr class="bodypost">
+                <td class="q_item1"><label>{{ value['text'] }}</label></td>
+                <td file><input type="file" name="{{key}}" id="{{key}}" multiple></td>
+                <td class="q_item3"><label>{{ questions['existing_uploads'][key] }}</label></td>
+            </tr>
+            {% endfor %}
+        </form>
+    </table>
+    <br>
+    <input type="submit" name="submit" value="Upload Files" form="uploadForm" style="font-size: 20px;">
+    <br>
+    <br>
+    {% endif %}
+    <table class="res-table">
+        <form id="gradeForm" method="POST" action="{{url_for('main.grade')}}" enctype="multipart/form-data">
             {% if 'mc' in questions.keys() %}
             <thead class="res-thead">
                 <th class="q_item1"><label>Question</label></th>
@@ -71,6 +93,18 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
+            {% if 'upload' in questions.keys() %}
+            <tr class="bodypost">
+                <th colspan=2 class="q_long_line">Tasks below will be graded using uploaded files when "Submit" is
+                    pressed</th>
+            </tr>
+            {% for key, value in questions['upload'].items() %}
+            <tr class="bodypost">
+                <td colspan=2 class="q_long_line_q"><label>{{ value['text'] }}</label></td>
+                <td hidden><input type="hidden" name="{{key}}"></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
             {% if 'cron' in questions.keys() %}
             <tr class="bodypost">
                 <th colspan=2 class="q_long_line">Tasks below will be auto-graded
@@ -87,10 +121,10 @@ DM24-0645
             </tr>
             {% endfor %}
             {% endif %}
-        </table>
-        <br>
-        <input type="submit" name="submit" value="Submit" style="font-size: 20px;">
-    </fieldset>
-</form>
+        </form>
+    </table>
+    <br>
+    <input type="submit" name="submit" value="Submit" form="gradeForm" style="font-size: 20px;">
+</fieldset>
 {% endif %}
 {% endblock %}

@@ -18,6 +18,7 @@ from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 from app.cmi5 import cmi5_load_variables,cmi5_send_completed,cmi5_send_answered
+from app.fileUploads import get_most_recent_file
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -101,6 +102,27 @@ def read_config(app):
 
         globals.grading_parts = conf['grading']['parts']
         globals.grader_post = get_clean_env('CS_GRADER_POST', '').lower() == 'true' or conf['grading'].get('grader_post') or False
+
+        globals.grading_uploads.update(conf['grading'].get('uploads', {}))
+        if 'files' in globals.grading_uploads:
+            files = globals.grading_uploads['files']
+            max_upload_size = globals.grading_uploads.setdefault('max_upload_size', '1M')
+            match max_upload_size[-1]:
+                case 'G':
+                    multiplier = 1024 * 1024 * 1024
+                case 'M':
+                    multiplier = 1024 * 1024
+                case 'K':
+                    multiplier = 1024
+                case _:
+                    multiplier = 1
+            try:
+                size_value = int(max_upload_size[:-1])
+            except ValueError:
+                logger.error(f"Max upload size {max_upload_size} should end with G, M, K, or a numeric value.")
+                sys.exit(1)
+            app.config['MAX_CONTENT_LENGTH'] = size_value * multiplier
+
 
         # Initialize phases & add to DB
         with app.app_context():
@@ -423,9 +445,14 @@ def do_grade(args):
         if (ques not in globals.grading_parts.keys()) or (globals.grading_parts[ques]['mode'] not in globals.VALID_CONFIG_MODES):
             logger.debug(f"The key {ques} is not a a grading key/mode. Skipping")
             continue
-        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] != "button"):
-            index = int(ques[-1])
+        index = int(ques[-1])
+        if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] not in ("button", "upload")):
             manual_grading_list.insert(index,{ques:ans})
+        elif globals.grading_parts[ques]['mode'] == "upload":
+            file_key = globals.grading_parts[ques]['upload_key']
+            saved_archive = get_most_recent_file(file_key, path=True)
+            manual_grading_list.insert(index,{ques:saved_archive})
+
 
     script_path = os.path.join(globals.custom_script_dir, globals.manual_grading_script)
     _, ext = os.path.splitext(script_path)
@@ -453,6 +480,7 @@ def do_grade(args):
             return get_results(results)
 
     try:
+        logger.info(f"Grading command is: {grade_cmd}")
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
         logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')
