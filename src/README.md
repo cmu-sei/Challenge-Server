@@ -154,10 +154,12 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
   - `text` - Provide the user with a text box to submit an answer.
   - `button` - Provides a button to trigger the grading script.
   - `cron` - Grade automatically on the configured schedule (see `cron_grading` settings).
+  - `upload` - Allow users to upload files that are processed by the grading script.
+    - `upload_key` - Define a set of files that an uploaded file should belong to. This is useful if multiple grading checks are looking at the same file or if multiple uploaded files are associated with one grading check. This value will be used to generate the name of the saved artifact.
   - `mc` - Multiple Choice question.
-  - `opts` -- Multiple choice options. Only applies when question mode is `mc`.
-    - Keys start at `a` and continue in alphabetical order.
-    - Values are the text for each option.
+    - `opts` -- Multiple choice options. Only applies when question mode is `mc`.
+      - Keys start at `a` and continue in alphabetical order.
+      - Values are the text for each option.
 
 ### phases (question sets)
 

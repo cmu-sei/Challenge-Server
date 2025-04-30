@@ -103,7 +103,24 @@ There are several types of grading that are supported by this server.
   - In this style of grading, the user is not expected to take any action for grading to occur. Grading happens on an interval and/or at a scheduled time
   - Additional config settings maybe be required for this style to operate to your challenge's specs.
 
-More information about using each grading type is provided in the comments of the [config](./src/config.yml) file.
+More information about using each grading type is provided in the [supplemental readme](./src/README.md).
+
+#### Uploading Files
+
+The Challenge Server allows users to upload files for grading. This type of grading is useful for:
+
+1. Programming exercises where running the user-supplied code can determine if they have met the success conditions
+2. Exercises where parsing a file can determine if the user has met the success conditions
+
+When files are uploaded, the Challenge Server first zips files that are part of the same file set. This allows users to select multiple files to upload, and results in a single zip file being stored on the Challenge Server after upload.
+
+When using the file upload grading type, multiple grading checks can be associated with the same file and multiple files can be associated with one grading check. When uploaded files are associated with a grading check, the Challenge Server will pass the path to the file sets to the grading script as positional arguments.
+
+##### Example
+
+A challenge requires a user to write a Python program that produces an expected output. The user uploads their Python program, consisting of multiple `.py` files in a format that follows the challenge instructions. The grading script will run the Python program in the way that the challenge developer described in the instructions to determine if the uploaded program meets the requirements.
+
+_Caution: Running user-uploaded code can be dangerous. The challenge developer should take necessary security precautions to ensure user-uploaded code/files do not have unintended consequences._
 
 ### Grading Scripts
 
