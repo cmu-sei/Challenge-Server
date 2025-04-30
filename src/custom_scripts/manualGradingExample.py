@@ -12,7 +12,7 @@
 # Please reference `grading_README.md` to understand grading script requirements.
 #####
 
-import json, sys
+import json, sys, os
 
 # 'submission' will contain text submitted to the question by the user
 def grade(submission=None):
