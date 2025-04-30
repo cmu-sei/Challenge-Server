@@ -49,7 +49,8 @@ class FileUpload(db.Model):
     __tablename__ = 'FileUploads'
 
     id            = db.Column(db.Integer, primary_key=True)
-    filename      = db.Column(db.String,  nullable=False)
+    file_name      = db.Column(db.String,  nullable=False)
+    file_path           = db.Column(db.String,  nullable=False)
     submission_number = db.Column(db.Integer, nullable=False)
     uploaded_at = db.Column(
         db.DateTime(timezone=True),

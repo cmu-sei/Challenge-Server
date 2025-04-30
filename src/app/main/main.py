@@ -64,8 +64,7 @@ def upload():
         if not uploaded:
             continue
 
-        if globals.grading_uploads['format'] == 'zip':
-            zip_path = save_uploaded_file(file_key, uploaded)
+        zip_path = save_uploaded_file(file_key, uploaded)
 
 
     return tasks()

@@ -17,7 +17,7 @@ from time import sleep
 from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
-from app.fileUploads import construct_file_save_path
+from app.fileUploads import get_most_recent_file
 
 ####### parse `config.yml` and assign values to globals object
 def read_config(app):
@@ -104,11 +104,6 @@ def read_config(app):
 
         globals.grading_uploads.update(conf['grading'].get('uploads', {}))
         if 'files' in globals.grading_uploads:
-            format_ = globals.grading_uploads.setdefault('format', 'zip')
-            if format_ not in globals.VALID_UPLOAD_FORMATS:
-                logger.error(f"Upload format {format_} is not a valid upload format.")
-                sys.exit(1)
-
             files = globals.grading_uploads['files']
             max_upload_size = globals.grading_uploads.setdefault('max_upload_size', '1M')
             match max_upload_size[-1]:
@@ -428,7 +423,7 @@ def do_grade(args):
             manual_grading_list.insert(index,{ques:ans})
         elif globals.grading_parts[ques]['mode'] == "upload":
             file_key = globals.grading_parts[ques]['upload_key']
-            saved_archive = construct_file_save_path(file_key)
+            saved_archive = get_most_recent_file(file_key, path=True)
             manual_grading_list.insert(index,{ques:saved_archive})
 
 
@@ -458,6 +453,7 @@ def do_grade(args):
             return get_results(results)
 
     try:
+        logger.info(f"Grading command is: {grade_cmd}")
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
         logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')

@@ -28,7 +28,6 @@ class Globals():
         self.VALID_TOKEN_LOCATIONS = ['env', 'guestinfo', 'file']
         self.VALID_SUBMISSION_METHODS = ['display', 'grader_post']
         self.VALID_SERVICE_TYPES = ['ping', 'socket', 'web']
-        self.VALID_UPLOAD_FORMATS = ['zip']
         # files/directories
         self.basedir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.custom_script_dir = f"{self.basedir}/custom_scripts"
