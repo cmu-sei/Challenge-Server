@@ -11,15 +11,24 @@
 
 import threading, subprocess, signal, os, json, datetime, sys
 from flask import Flask, url_for, redirect, flash, request
-
-#local imports
+from typing import Dict, Tuple
 from config import Config
-from app.functions import run_cron_thread, record_solves
+from app.functions import run_cron_thread
 from app.extensions import globals, logger, db
 from app.models import EventTracker
 
 
-def create_app(config_class=Config):
+def create_app(config_class: Config = Config) -> Flask:
+    """
+    Create the Flask application
+
+    Args:
+        config_class (Config, optional): Defaults to Config.
+
+    Returns:
+        Flask: The Flask application
+    """
+
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
     app.url_map.strict_slashes = False
@@ -90,7 +99,13 @@ def create_app(config_class=Config):
                     db.session.commit()
     return app
 
-def run_startup_scripts():
+def run_startup_scripts() -> Tuple[dict[str,str], dict[str,str]]:
+    """
+    Runs the startup scripts
+
+    Returns:
+        Tuple[dict[str,str], dict[str,str]]: dictionaries that contain stdout / stderr for successful/failed startup scripts.
+    """
     successes = {}
     errors = {}
     if not globals.startup_scripts:
@@ -117,7 +132,12 @@ def run_startup_scripts():
     return successes, errors
 
 
-def start_grading_server(app):
+def start_grading_server(app: Flask):
+    """Start the challenge server .
+
+    Args:
+        app (Flask): The Flask app
+    """
     # exit if server is not enabled
     if not globals.grading_enabled and not globals.hosted_files_enabled:
         logger.info("Website features not enabled. Will serve disabled page from /.")
