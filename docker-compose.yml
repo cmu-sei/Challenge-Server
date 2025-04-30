@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8888:8888"
+    # List environment variable configurations here
     # environment:
-    # # List environment variable configurations here
     # - CS_APP_CERT='/path/to/tls/cert'
     # - CS_APP_HOST='0.0.0.0'
     # - CS_APP_KEY='/path/to/tls/key'

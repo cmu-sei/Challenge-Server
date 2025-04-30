@@ -12,6 +12,7 @@ import json, requests, datetime, isodate, uuid, copy
 from app.extensions import logger, globals
 from app.env import get_clean_env
 
+
 def cmi5_read_variables(env_key, config_section, config_key):
     env_value = get_clean_env(env_key)
     if env_value:
@@ -25,6 +26,7 @@ def cmi5_read_variables(env_key, config_section, config_key):
 
     logger.error(f"[cmi5] Missing required variable '{config_key}'. Please set it as an environment variable or in the config.")
     return ''
+
 
 def cmi5_load_variables(conf):
     """
@@ -64,11 +66,12 @@ def cmi5_load_variables(conf):
 
     globals.cmi5_context = context
 
+
 def send_cmi5_statement(statement: dict, statement_id: str):
     """
     Sends a single xAPI statement
     """
-    
+
     # Uses the same UUID generated in the statement
     statement["id"] = statement_id
 
@@ -76,7 +79,7 @@ def send_cmi5_statement(statement: dict, statement_id: str):
     if not endpoint:
         logger.error(f"[cmi5] No value found for key: {endpoint}")
         return None
-    
+
     headers = {
         "Content-Type": "application/json",
         "X-Experience-API-Version": "1.0.3",
@@ -92,6 +95,7 @@ def send_cmi5_statement(statement: dict, statement_id: str):
             logger.info(f"[cmi5] Successfully sent CMI5 statement (verb={verb_id}, id={statement_id}).")
     except Exception as e:
         logger.error(f"[cmi5] Exception sending statement: {e}")
+
 
 def cmi5_send_completed():
     """
@@ -186,6 +190,7 @@ def cmi5_send_terminated():
     }
     send_cmi5_statement(statement, statement_id)
 
+
 def cmi5_send_answered(question_label: str, question_text: str, user_answer: str, question_mode: str, question_opts: dict, success: bool):
     """
     Send a "cmi5 allowed" question-level 'answered' statement with result.
@@ -214,11 +219,11 @@ def cmi5_send_answered(question_label: str, question_text: str, user_answer: str
             }
             for key, value in question_opts.items()
         ]
-    
+
     elif question_mode == "text":
         definition["interactionType"] = "fill-in"
         definition["type"] = "http://adlnet.gov/expapi/activities/cmi.interaction"
-    
+
     else:
         definition["interactionType"] = "performance"
         definition["type"] = "http://adlnet.gov/expapi/activities/cmi.interaction"
@@ -270,4 +275,3 @@ def cmi5_get_defined_context(categories=None):
 
     context["contextActivities"]["category"] = existing_category
     return context
- 
