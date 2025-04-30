@@ -17,6 +17,7 @@
                 res = JSON.parse(this.responseText);
 
                 var data = document.getElementById('results');
+                data.innerHTML = '';             // remove existing content
 
                 if (res.fatal_error === true) {
                     err_check = document.getElementById('err');
