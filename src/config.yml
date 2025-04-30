@@ -124,7 +124,7 @@ grading:
   #   phase1: ["GradingCheck1"]
   #   phase2: ["GradingCheck2"]
 
-  # This is a multi-file upload example
+# This is a multi-file upload example
   # uploads:
   #   files:
   #     fileset1:
@@ -163,3 +163,13 @@ grading:
   #     text: "Question 6: Implement the `part6()` function"
   #     upload_key: fileset2
   #     mode: upload
+  
+  # cmi5:
+#   enabled: false
+#   endpoint: ""
+#   registration: ""
+#   activityid: ""
+#   actor: ''
+#   sessionid: ""
+#   contextTemplate: ''
+#   auth-token: ""

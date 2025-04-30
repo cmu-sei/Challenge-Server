@@ -173,3 +173,27 @@ A phase cannot be viewed until the previous phase has been completed. This is to
   - Best practice is to name phases with `phase` followed by a number (e.g., `phase1`, `phase2`, etc.).
 
 Examples can be found in the `config.yml` file.
+
+## CMI5
+
+CMI5 configuration allows the Challenge Server to send "cmi5 defined" and "cmi5 allowed" statements.
+
+- `enabled`
+  - Set to `true` to enable sending CMI5 statements to an LRS.
+  - `false` disables all CMI5 functionality.
+- `endpoint` - required - URL to the LMS listener location.
+  - Parsed from the Launch URL.
+  - Must be an URL-encoded URL.
+- `registration` - required - Registration ID corresponding to the learner's enrollment for the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an UUID.
+- `activityid` - required - Activity ID of the AU being launched.
+  - Parsed from the Launch URL.
+  - Must be an IRI.
+- `actor` - required - JSON object of objectType of Agent (as defined in xAPI) that identifies the learner launching the AU so the AU will be able to include it in xAPI requests.
+  - Parsed from the Launch URL.
+  - Must be a JSON object.
+- `contextTemplate` - required - contextTemplate for the AU being launched.
+  - Must be a JSON context object as defined in xAPI.
+- `sessionid` - required - Unique identifier for a single AU launch session based on actor and course registration.
+- `auth-token` - required - Authorization token used in all xAPI communications with the LMS.

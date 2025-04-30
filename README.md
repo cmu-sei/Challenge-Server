@@ -170,3 +170,21 @@ This server supports 2 methods for grading results.
 ## Hosting Files
 
 This server can be used to host any files you need to share with the competitor inside the challenge environment. To host files, place the files in the [hosted_files](./src/hosted_files/) directory.  This will allow competitors to download the files from inside their challenge environment.
+
+## xAPI/CMI5
+
+The Challenge Server can send [xAPI](https://xapi.com/)/[CMI5](https://xapi.com/cmi5/) compliant statements to a configured [Learning Record Store (LRS)](https://xapi.com/get-lrs/). Using this feature requires configuring variables that are used to communicate with the LRS (see the [supplemental readme](./src/README.md) for configuration details).
+
+1. When a user submits for grading, the Challenge Server will send a [CMI5 Allowed Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: `answered`
+  b. Question and answer details, including question, question mode (text, multiple choice, etc.), answers, etc.
+  c. [Interaction type](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#interaction-types) is set according to the configured question mode
+    i. `text` mode maps to the `fill-in` xAPI interaction type
+    ii. `mc` mode maps to the `choice` xAPI interaction type
+    iii. All other grading modes map to the `performance` xAPI interaction type
+2. When a user correctly answers all questions, the Challenge Server will send a [CMI5 Defined Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: [completed](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#verbs_completed)
+  b. The `challenge_name` is used as the statement Object Name.
+3. When a user correctly answers all questions, the Challenge Server will send a [CMI5 Defined Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+  a. Verb: [terminated](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#verbs_terminated)
+  b. The `challenge_name` is used as the statement Object Name.

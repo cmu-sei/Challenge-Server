@@ -17,6 +17,7 @@ from time import sleep
 from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
+from app.cmi5 import cmi5_load_variables,cmi5_send_completed,cmi5_send_answered
 from app.fileUploads import get_most_recent_file
 
 ####### parse `config.yml` and assign values to globals object
@@ -323,6 +324,12 @@ def read_config(app):
     if get_clean_env('CS_SERVICES_HOME_ENABLED', '').lower() == 'true' or (conf.get('info_and_services') or {}).get('services_home_enabled'):
         globals.services_home_enabled = True
 
+    globals.cmi5_enabled = get_clean_env('CS_CMI5_ENABLED', '').lower() == 'true' or (conf.get('cmi5') or {}).get('enabled') or False
+    logger.info(f"CMI5 enabled: {globals.cmi5_enabled}")
+
+    if globals.cmi5_enabled:
+        globals.cmi5_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        cmi5_load_variables(conf)
 
 def check_questions():
     with current_app.app_context():
@@ -338,6 +345,8 @@ def check_questions():
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
+            if globals.cmi5_enabled:
+                cmi5_send_completed()
 
 
 def get_current_phase():
@@ -367,12 +376,30 @@ def update_db(type_q,label=None, val=None):
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
                 if (val != None) and ('--' in val):
-                    cur_question.response = val.split('--',1)[1]
-                if ('--' not in val) and (cur_question.response == ''):
+                    user_response, user_answer = val.split('--', 1)
+                    cur_question.response = user_response
+                if (val is None or '--' not in val) and (cur_question.response == ''):
                     cur_question.response = "N/A"
+                was_solved = cur_question.solved
+
+                part_info = globals.grading_parts.get(label, {})
+                question_text = part_info.get('text', '')
+                question_mode = part_info.get('mode', '')
+                question_opts = {}
+                if question_mode == 'mc':
+                    question_opts = part_info.get('opts', {})
+                user_response = cur_question.response
+
                 if "success" in val.lower():
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                    # CMI5: If newly solved, send question-level 'answered' statement with success set to True
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, True)
+                else:
+                    # CMI5: If newly failed, send question-level 'answered' statement with success set to False
+                    if not was_solved and globals.cmi5_enabled:
+                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, False)
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")
@@ -396,7 +423,7 @@ def update_db(type_q,label=None, val=None):
                             num_q -= 1
                     if num_q == 0:
                         phase.solved = True
-                        phase.time_solved =datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                        phase.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                         db.session.commit()
                     else:
                         globals.current_phase = phase.label
@@ -493,8 +520,9 @@ def do_grade(args):
                 logger.info(f"Grading script, {globals.manual_grading_script}, did not yield a result for grading part {grading_key}. Assigning value of 'Failed'")
                 results[grading_key] = "Failed"
 
-    for k,v in results.items():
-        update_db('q',k,v)
+    for k, v in results.items():
+        user_input = grade_args.get(k, "")
+        update_db('q', k, f"{v}--{user_input}")
 
     return get_results(results)
 

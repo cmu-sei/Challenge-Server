@@ -62,8 +62,6 @@ def create_app(config_class=Config):
                     form_data = "No Data Submitted"
                     if len(form_data) > 0:
                         form_data = dict(request.form)
-                        # if 'submit' in form_data.keys():
-                        #     del form_data['submit']
                         for k, v in request.form.items():
                             if k != 'submit':
                                 form_data[f"{k}_text"] = globals.grading_parts[k]['text']

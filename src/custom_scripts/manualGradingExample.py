@@ -19,25 +19,25 @@ def grade(submission=None):
     results = dict()
 
     # GradingCheck1
-    if submission['GradingCheck1'] == 'b':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
+    if submission.get('GradingCheck1') == 'b':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
         results['GradingCheck1'] = "Success"
     else:
         results['GradingCheck1'] = "Failure"
 
     # GradingCheck2
-    if submission['GradingCheck2'] == 'test2':
+    if submission.get('GradingCheck2') == 'test2':
         results['GradingCheck2'] = "Success"
     else:
         results['GradingCheck2'] = "Failure"
 
     # GradingCheck3
-    if submission['GradingCheck3'] == 'test3':
+    if submission.get('GradingCheck3') == 'test3':
         results['GradingCheck3'] = "Success"
     else:
         results['GradingCheck3'] = "Failure"
 
     # GradingCheck4
-    if submission['GradingCheck4'] == 'test4':
+    if submission.get('GradingCheck4') == 'test4':
         results['GradingCheck4'] = "Success"
     else:
         results['GradingCheck4'] = "Failure"
