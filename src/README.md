@@ -181,7 +181,7 @@ CMI5 configuration allows the Challenge Server to send "cmi5 defined" and "cmi5 
 - `enabled`
   - Set to `true` to enable sending CMI5 statements to an LRS.
   - `false` disables all CMI5 functionality.
-- `endpoint` - required - URL to the LMS listener location. 
+- `endpoint` - required - URL to the LMS listener location.
   - Parsed from the Launch URL.
   - Must be an URL-encoded URL.
 - `registration` - required - Registration ID corresponding to the learner's enrollment for the AU being launched.
