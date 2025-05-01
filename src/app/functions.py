@@ -9,10 +9,9 @@
 #
 
 
-import yaml, os, subprocess, datetime, sys, ipaddress
+import yaml, os, datetime, sys, ipaddress
 from flask import Flask
 from concurrent.futures import ThreadPoolExecutor
-from time import sleep
 from app.extensions import logger, globals, db
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking
@@ -340,70 +339,3 @@ def read_config(app: Flask) -> None:
     if globals.cmi5_enabled:
         globals.cmi5_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
         cmi5_load_variables(conf)
-
-
-def get_logs(service: dict) -> None:
-    """Get the logs of a logged service by using SSH.
-
-    Args:
-        service (dict): Service dictionary
-    """
-
-    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    while True:
-        sleep(10)
-        error = ''
-        try:
-            ## `systemctl is-active` to get/log service info
-            get_status_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'systemctl is-active {service['service']}'"
-            status_response = subprocess.run(get_status_cmd, shell=True,capture_output=True, timeout=10)
-        except subprocess.TimeoutExpired:
-            logger.error(f"SERVICE_LOGGER: request to host timed out.")
-            globals.services_status[service['service']] = [service['host'],f"request to host timed out. Trying again shortly"]
-            continue
-        except Exception as e:
-            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve service status: {e}")
-            globals.services_status[service['service']] = [service['host'],f"Exception attempting to retrieve service status."]
-            continue
-        if status_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERVICE_LOGGER: Failed to get service status. Error: {status_response.stderr.decode('utf-8')}")
-            globals.services_status[service['service']] = [service['host'],f"Error has occurred when attempting to get service status."]
-            continue
-        if status_response.stdout.decode('utf-8').strip('\n') == 'failed':
-            error = "SERVICE FAILED: "
-            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
-            globals.services_status[service['service']] = [service['host'],f"Service is in failed state."]
-        elif status_response.stdout.decode('utf-8').strip('\n') == 'inactive':
-            error = "SERVICE INACTIVE: "
-            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
-            globals.services_status[service['service']] = [service['host'],f"Service is in inactive state."]
-        else:
-            globals.services_status[service['service']] = [service['host'],f"Service is in active state."]
-        ## grab logs
-        try:
-            get_log_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'journalctl --since \"{log_time}\" -u {service['service']}'"
-            log_response = subprocess.run(get_log_cmd, shell=True,capture_output=True,timeout=10)
-            cur_logs = log_response.stdout.decode('utf-8')
-        except subprocess.TimeoutExpired:
-            logger.error(f"SERVICE_LOGGER: SSH connection to {service['user']}@{service['host']} timed out.")
-            continue
-        except Exception as e:
-            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve logs: {e}")
-            continue
-        if log_response.stdout.decode('utf-8') == '':
-            logger.error(f"SERVICE_LOGGER: Failed to collect logs. Error: {log_response.stderr.decode('utf-8')}")
-            continue
-        if "No entries" in cur_logs:
-            if error:
-                logger.error(f"SERVICE_LOGGER: {error} No new logs fe.")
-            else:
-                logger.info(f"SERVICE_LOGGER: No new logs found at this time.")
-            continue
-        output = cur_logs.split("\n")
-        output.remove("")
-        for line in output:
-            if error == False:
-                logger.info(f"SERVICE_LOGGER: {line}")
-            else:
-                logger.error("SERVICE_LOGGER: "+ error + line)
-        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
