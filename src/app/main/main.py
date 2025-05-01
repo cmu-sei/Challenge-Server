@@ -13,8 +13,9 @@ import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g, Response
 from typing import Any
 from app.databaseHelpers import check_questions
+from app.grading import do_grade
 from app.extensions import logger, globals
-from app.functions import do_grade, read_token
+from app.grading import read_token
 from app.fileUploads import save_uploaded_file, get_most_recent_uploads
 from app.models import QuestionTracking
 
