@@ -10,18 +10,31 @@
 
 
 import yaml, os, subprocess, requests, datetime, json, sys, ipaddress
-from flask import current_app
+from flask import current_app, Flask
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future
 from time import sleep
+from typing import Any
 from app.extensions import logger, globals, db, record_solves_lock
 from app.env import get_clean_env
 from app.models import QuestionTracking,PhaseTracking, EventTracker
 from app.cmi5 import cmi5_load_variables,cmi5_send_completed,cmi5_send_answered
 from app.fileUploads import get_most_recent_file
 
+
 ####### parse `config.yml` and assign values to globals object
-def read_config(app):
+def read_config(app: Flask) -> None:
+    """
+     Apply app configurations by reading from env vars or the config file.
+     Always prefer values present in env vars over the config file.
+
+    Args:
+        app (Flask): This Flask app
+
+    Raises:
+        ValueError: Raised when configs are expected but not present.
+    """
+
     conf = None
     if not os.path.isfile(globals.yaml_path):
         logger.error("Could not find config.yml file.")
@@ -123,7 +136,6 @@ def read_config(app):
                 sys.exit(1)
             app.config['MAX_CONTENT_LENGTH'] = size_value * multiplier
 
-
         # Initialize phases & add to DB
         with app.app_context():
             if conf['grading'].get('phases'):
@@ -150,7 +162,6 @@ def read_config(app):
                     ...
                 if not p_restart:
                     try:
-
                         for ind,phase in enumerate(globals.phase_order):
                             new_phase = PhaseTracking(id=ind, label=phase, tasks=','.join(globals.phases[phase]), solved=False,time_solved="---")
                             db.session.add(new_phase)
@@ -331,7 +342,12 @@ def read_config(app):
         globals.cmi5_au_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
         cmi5_load_variables(conf)
 
-def check_questions():
+def check_questions() -> None:
+    """
+    Check all questions in the database to determine if the challenge is completed.
+    If the challenge is completed and CMI5 support is enabled, send a CMI5 statement.
+    """
+
     with current_app.app_context():
         solved_tracker = 0
         questions = QuestionTracking.query.all()
@@ -349,7 +365,16 @@ def check_questions():
                 cmi5_send_completed()
 
 
-def get_current_phase():
+def get_current_phase() -> str:
+    """Get the currently active phase.
+
+    Raises:
+        KeyError: If PhaseTracking database table is empty or the current phase key does not exist.
+
+    Returns:
+        str: The current phase or "completed"
+    """
+
     with current_app.app_context():
         if not PhaseTracking.query.filter_by().all():
             logger.info(f"PhaseTracking table is empty.")
@@ -367,7 +392,18 @@ def get_current_phase():
         return "completed"
 
 
-def update_db(type_q,label=None, val=None):
+def update_db(type_q: str, label: str = '', val: str = '') -> Any:
+    """Update database with question or phase status.
+
+    Args:
+        type_q (str): 'q' for question or 'p' for phase update
+        label (str, optional): Database event label. Defaults to ''.
+        val (str, optional): Database event value. Defaults to ''.
+
+    Returns:
+        Any
+    """
+
     with current_app.app_context():
         if type_q == 'q':
             try:
@@ -375,10 +411,10 @@ def update_db(type_q,label=None, val=None):
                 if cur_question == None:
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
-                if (val != None) and ('--' in val):
+                if '--' in val:
                     user_response, user_answer = val.split('--', 1)
                     cur_question.response = user_response
-                if (val is None or '--' not in val) and (cur_question.response == ''):
+                if (val and '--' not in val) and (cur_question.response == ''):
                     cur_question.response = "N/A"
                 was_solved = cur_question.solved
 
@@ -433,11 +469,16 @@ def update_db(type_q,label=None, val=None):
 #######
 # Grading Functions
 #######
-def do_grade(args):
-    '''
-    This method is the grading and token reading for all manual questions
-    The method gets called from the Jinja template rendering (inside { } in the graded.html file)
-    '''
+def do_grade(args: dict) -> tuple[dict,dict]:
+    """
+    Grading and token reading for all manual questions
+
+    Args:
+        args (dict): Arguments to the grading script (passed via JSON on the command line when grading script is called).
+
+    Returns:
+        tuple[dict,dict]: Grading results
+    """
 
     globals.fatal_error = False
     manual_grading_list = list()
@@ -527,7 +568,17 @@ def do_grade(args):
     return get_results(results)
 
 
-def check_db(label):
+def check_db(label: str) -> bool:
+    """
+    Check if the question has been solved.
+
+    Args:
+        label (str): Question label
+
+    Returns:
+        bool: Solved status.
+    """
+
     with current_app.app_context():
         cur_question = QuestionTracking.query.filter_by(label=label).first()
         if cur_question == None:
@@ -536,7 +587,17 @@ def check_db(label):
         return cur_question.solved
 
 
-def get_results(results):
+def get_results(results: dict) -> tuple[dict,dict]:
+    """
+    Parse grading results to determine if any contain "success".
+
+    Args:
+        results (dict): Results from grading script.
+
+    Returns:
+        tuple[dict,dict]: Success/failure message for each grading check.
+    """
+
     # for each result that is returned, check if success is in the message.
     # If success is in the message, then read and store the token for that check
     end_results = results.copy()
@@ -557,12 +618,16 @@ def get_results(results):
     return end_results, tokens
 
 
-def done_grading(future: Future):
-    '''
+def done_grading(future: Future) -> None:
+    """
     Callback function for do_grade.
     Checks to see if the results need to be PUT to the grading server
     Saves solves to the database
-    '''
+
+    Args:
+        future (Future): Grading results future (populated when grading is finished)
+    """
+
     results, tokens = future.result()
     logger.info(f"Server sees {globals.manual_grading_script} results as: {results}")
     logger.info(f"Server sees tokens as: {tokens}")
@@ -578,15 +643,17 @@ def done_grading(future: Future):
         post_submission(tokens)
 
 
-def post_submission(tokens: dict):
-    '''
-    This method will send a POST to the grader for automatic grading.
-    All POST attempts are logged.
+def post_submission(tokens: dict) -> Any:
+    """
+    Send a POST to the grader for automatic grading.
     Method will try 4 times (sleep 1 second between each failed attempt).
     After 4 failures, the method will log an error and return.
-    '''
-    token_values = tokens.values()
 
+    Args:
+        tokens (dict): GradingCheck:token to submit
+    """
+
+    token_values = tokens.values()
 
     # build the request headers and payload to send to the grader
     headers = {
@@ -641,11 +708,14 @@ def post_submission(tokens: dict):
 #######
 # Cron grading
 #######
-def set_cron_vars(conf):
-    '''
-    Set the value of the cron global vars
+def set_cron_vars(conf: dict) -> None:
+    """
+    Set the value of the cron global vars.
     Try reading values from environment variables. Fall back to config file, then defaults or error.
-    '''
+
+    Args:
+        conf (dict): Configuration dict
+    """
 
     # set cron grading script. Error if script is not defined or not executable
     globals.grading_mode.append('cron')
@@ -691,11 +761,14 @@ def set_cron_vars(conf):
     globals.cron_delay = globals.cron_delay + time_diff
 
 
-def do_cron_grade():
-    '''
-    Grading and token reading for cron
-    The method gets called from the Jinja template rendering (inside { } in the graded.html file)
-    '''
+def do_cron_grade() -> tuple[dict,dict]:
+    """
+    Grading and token reading for cron style grading.
+
+    Returns:
+        tuple[dict,dict]: Grading results
+    """
+
     globals.fatal_error = False
 
     try:
@@ -741,10 +814,14 @@ def do_cron_grade():
     logger.info(f"Grading tokens: {tokens}")
     return end_results, tokens
 
-def run_cron_thread():
-    '''
-    Run do_grade on a timer via a thread (similar to a cron job)
-    '''
+
+def run_cron_thread() -> None:
+    """
+    Run do_cron_grade on a timer via a thread (similar to a cron job)
+    Post submissions if needed.
+    Log grading attempts to the database.
+    """
+
     limit = globals.cron_limit
     logger.info(f"Starting cron thread with interval {globals.cron_interval}. Grading is limited to running {limit} times.")
 
@@ -765,14 +842,19 @@ def run_cron_thread():
     logger.info(f"The number of grading attempts ({limit}) has been exhausted. No more grading will take place.")
 
 
-
 #######
 # Token functions
 #######
-def read_token(part_name):
-    '''
-    This method takes a Check name as an argument. Examples can be "Check1", "Check2", etc.
-    '''
+def read_token(part_name: str) -> str:
+    """
+    Read the token for the named grading check.
+
+    Args:
+        part_name (str): Name of the grading check
+
+    Returns:
+        str: Token value
+    """
 
     # get the token name for this part
     try:
@@ -822,7 +904,13 @@ def read_token(part_name):
             return "Unexpected error encountered. Contact an administrator."
 
 
-def get_logs(service):
+def get_logs(service: dict) -> None:
+    """Get the logs of a logged service by using SSH.
+
+    Args:
+        service (dict): Service dictionary
+    """
+
     log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     while True:
         sleep(10)
@@ -883,7 +971,11 @@ def get_logs(service):
         log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
-def record_solves():
+def record_solves() -> None:
+    """
+    Record completed question data to the database.
+    """
+
     with record_solves_lock:
         with globals.scheduler.app.app_context():
             objs = {

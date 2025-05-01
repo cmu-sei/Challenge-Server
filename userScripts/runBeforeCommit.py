@@ -12,7 +12,7 @@
 
 import subprocess, json, datetime, os
 
-def runShutdown():
+def runShutdown() -> None:
     ## Use challenge code to check if server running in workspace or gamespace
     challenge_code = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.code'", shell=True, capture_output=True).stdout.decode('utf-8').strip()
     challenge_code = "workspace" if not challenge_code or "##" in challenge_code else challenge_code

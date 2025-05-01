@@ -13,6 +13,10 @@ import os
 from app.extensions import globals
 
 class Config:
+    """
+    Flask application configuration.
+    """
+
     SECRET_KEY = 'NOT_A_TOKEN'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(globals.basedir,'challenge.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False

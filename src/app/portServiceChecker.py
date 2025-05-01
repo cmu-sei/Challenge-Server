@@ -15,21 +15,28 @@ from time import sleep
 from app.extensions import logger
 
 
-def checkLocalPorts():
-    '''
+def checkLocalPorts() -> str:
+    """
     Runs a subprocess to list open TCP and UDP ports
-    Returns Stdout from the subprocess
-    '''
+
+    Returns:
+        str: Stdout from the subprocess command
+    """
+
     stdout = subprocess.run("ss -nltup", shell=True, capture_output=True).stdout.decode("UTF-8")
     return stdout
 
 
-def checkLocalPortLoop(interval=30):
-    '''
+def checkLocalPortLoop(interval: int = 30) -> None:
+    """
     Checks open ports forever in a loop. Default time between checks is 30s.
     Logs results to the same logger as the rest of the Challenge Server.
     Logs in a more readable format written to /var/log/open-ports
-    '''
+
+    Args:
+        interval (int, optional): Seconds to wait between checks. Defaults to 30.
+    """
+
     logger.info(f"Checking local open ports every {interval} seconds")
     while True:
         date = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
@@ -45,14 +52,21 @@ def checkLocalPortLoop(interval=30):
         sleep(interval)
 
 
-def isIPv4(host):
-    '''
+def isIPv4(host: str) -> bool:
+    """
     Checks the IP version of a given address
     Returns True if the address is IPv4
     Returns False if the address is IPv6
     If host is a hostname/FQDN, attempts to resolve as IPv4
     If unsuccessful, assumes address is IPv6
-    '''
+
+    Args:
+        host (str): Hostname or IP Address
+
+    Returns:
+        bool: True if address is IPv4. False if address is IPv6
+    """
+
     if isValidIPv4(host):
         logger.info(f"Regex matched {host} as a valid IPv4 address")
         return True
@@ -80,26 +94,34 @@ def isIPv4(host):
             return True
 
 
-def isValidIPv4(host):
-    '''
-    A regular expression to check if a given host
-    value matches the pattern of an IPv4 address.
-    Returns True if address matches the pattern
-    Returns False if it does not
-    '''
+def isValidIPv4(host: str) -> bool:
+    """
+    Returns True if the given host is a valid IPv4 address.
+
+    Args:
+        host (str): IP Address
+
+    Returns:
+        bool: Returns True if the given host is a valid IPv4 address.
+    """
+
     ipv4_re = re.compile(
         (r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.)'
          r'{3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'))
     return bool(ipv4_re.match(host))
 
 
-def isValidIPv6(host):
-    '''
-    A regular expression to check if a given host
-    value matches the pattern of an IPv6 address.
-    Returns True if address matches the pattern
-    Returns False if it does not
-    '''
+def isValidIPv6(host: str) -> bool:
+    """
+    Returns True if the given host is a valid IPv6 address.
+
+    Args:
+        host (str): IP Address
+
+    Returns:
+        bool: Returns True if the given host is a valid IPv6 address.
+    """
+
     ipv6_re = re.compile(
         (r'([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'
          r'([0-9a-fA-F]{1,4}:){1,7}:|'
@@ -120,12 +142,18 @@ def isValidIPv6(host):
     return bool(ipv6_re.match(host))
 
 
-def checkPing(host, count=1):
-    '''
+def checkPing(host: str, count: int = 1) -> bool:
+    """
     Checks to see if a host is able to be reached via ping
-    Returns True if the host can be pinged
-    Returns False if the host cannot be pinged
-    '''
+
+    Args:
+        host (str): Hostname/IP address to ping
+        count (int, optional): Number of pings to attempt. Defaults to 1.
+
+    Returns:
+        bool:     Returns True if the host can be pinged. Returns False if the host cannot be pinged.
+    """
+
     logger.info(f"Pinging host {host}")
     try:
         results = subprocess.run(f"ping {host} -W 1 -c {count}", shell=True, capture_output=True)
@@ -143,12 +171,20 @@ def checkPing(host, count=1):
         return False
 
 
-def checkSocket(host, port):
-    '''
+def checkSocket(host: str, port: str|int) -> bool:
+    """
     Checks to see if a remote socket (host/port pair) is reachable
-    Returns True if socket connection is successful (port is reachable)
-    Returns False if socket connection failed (port is not reachable)
-    '''
+
+    Args:
+        host (str): Hostname or IP Address
+        port (str|int): Port number
+
+    Returns:
+        bool: Returns True if socket connection is successful (port is reachable)
+              Returns False if socket connection failed (port is not reachable)
+
+    """
+
     logger.info(f"Attempting to connect to socket {host}:{port}")
     success = False
     try:
@@ -169,23 +205,33 @@ def checkSocket(host, port):
     return success
 
 
-def checkWeb(host, port=80, path='/'):
-    '''
+def checkWeb(host: str, port: str|int = 80, path:str = '/') -> bool:
+    """
     Checks connection to a web URL
-    Returns True if the web request returns a 200
-    Returns False if the web request returns anything but a 200
-    If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
-    '''
+
+    Args:
+        host (str): Hostname or IP Address of web server
+        port (str, optional): Website port. Defaults to 80.
+        path (str, optional): URI path. Defaults to '/'.
+
+    Returns:
+        bool: Returns True if the web request returns a 200
+              Returns False if the web request returns anything but a 200
+    """
+
     fqdn = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
     if fqdn.search(host):  # Check if host is FQDN. If True, IP version does not matter.
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using FQDN")
+
+    #  If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
     elif isIPv4(host):
         url = f"http://{host}:{port}{path}"
         logger.info("checkWeb is using IPv4")
     else:
         url = f"http://[{host}]:{port}{path}"
         logger.info("checkWeb is using IPv6")
+
     logger.info(f"Attempting to reach {url}")
     try:
         result = requests.get(url=url)
@@ -199,15 +245,23 @@ def checkWeb(host, port=80, path='/'):
         logger.error(f"Failed connection to {url}. Connection Error: {e}")
     except Exception as e:
         logger.error(f"Failed connection to {url}. Got Exception: {e}")
+
     return False
 
 
-def checkService(service: dict):
-    '''
-    Checks to see if the service is available once.
-    Returns True if the service is reachable.
-    Returns False if the service is unreachable.
-    '''
+def checkService(service: dict) -> bool:
+    """
+    Check if a given service is reachable.
+
+    Args:
+        service (dict): Service dict with keys expected according to
+                        the standard required_service config
+
+    Returns:
+        bool: Returns True if the service is reachable.
+              Returns False if the service is unreachable.
+    """
+
     logger.info(f"Checking availability of service: {service}")
     reachable = False
     service_type = service['type']
@@ -226,12 +280,22 @@ def checkService(service: dict):
         return False
 
 
-def waitForService(service: dict, interval=2, max_attempts=None):
-    '''
+def waitForService(service: dict, interval: int = 2, max_attempts: int = 0) -> bool:
+    """
     Checks the service in a loop until it becomes available or max_attempts is reached.
     Returns once the service is available or max_attempts is reached.
-    Default time between checks is 2s.
-    '''
+
+    Args:
+        service (dict): Service dict with keys expected according to
+                        the standard required_service config
+        interval (int, optional): Seconds between re-checking service. Defaults to 2.
+        max_attempts (int, optional): Maximum number of times to check. Defaults to 0.
+
+    Returns:
+        bool: Returns True is the service is available.
+              Returns False if the service is not available before max_attempts is reached.
+    """
+
     service_available = False
     attempts = 0
     while True:
@@ -246,10 +310,20 @@ def waitForService(service: dict, interval=2, max_attempts=None):
         sleep(interval)
 
 
-def checkServiceLoop(service: dict, interval=30, max_checks=None):
-    '''
-    Checks the availability of the service forever in a loop (or until max_checks is reached). Default time between checks is 30s.
-    '''
+def checkServiceLoop(service: dict, interval: int = 30, max_checks: int = 0) -> bool:
+    """
+    Checks the availability of a service forever in a loop (or until max_checks is reached).
+
+    Args:
+        service (dict): Service dict with keys expected according to
+                        the standard required_service config
+        interval (int, optional): Seconds between re-checking service. Defaults to 30.
+        max_checks (int, optional): Maximum number of times to check. Defaults to 0.
+
+    Returns:
+        bool: Returns True only when the maximum number of checks have completed.
+    """
+
     logger.info(f"Checking service {service} every {interval} seconds")
     attempts = 0
     while True:

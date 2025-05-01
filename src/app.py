@@ -21,9 +21,10 @@ from app.extensions import logger, globals
 # Create flask app obj
 app = create_app()
 if __name__ == '__main__':
-    '''
-    This code will start the threads and handle running all aspect of the server
-    '''
+    """
+    Start the threads and handle running the server
+    """
+
     if os.geteuid() != 0:
         logger.error("Must be run by root.")
         sys.exit(1)
