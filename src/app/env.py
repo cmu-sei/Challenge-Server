@@ -9,10 +9,18 @@
 
 import os
 
-def get_clean_env(name, default=None):
-    '''
-    Gets and env var and strips quotes that might be in the string
-    '''
+def get_clean_env(name: str, default: str = None) -> str:
+    """
+    Gets an env var and strips quotes that might be in the string
+
+    Args:
+        name (str): Name of environment variable to get
+        default (str, optional): Vale to return if no env var exists. Defaults to None.
+
+    Returns:
+        str: Value of the env var with quotes removed
+    """
+
     val = os.getenv(name, default)
     if val:
         return val.strip().strip('"').strip("'")

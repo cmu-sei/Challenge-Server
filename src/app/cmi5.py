@@ -25,6 +25,7 @@ def cmi5_read_variables(env_key: str, config_section: dict, config_key: str) -> 
     Returns:
         str: value of a CMI5 configuration
     """
+
     env_value = get_clean_env(env_key)
     if env_value:
         logger.info(f"CMI5 {config_key}: {env_value}")
@@ -39,7 +40,7 @@ def cmi5_read_variables(env_key: str, config_section: dict, config_key: str) -> 
     return ''
 
 
-def cmi5_load_variables(conf: dict):
+def cmi5_load_variables(conf: dict) -> None:
     """
     Load CMI5 variables into globals
 
@@ -128,6 +129,7 @@ def cmi5_send_completed() -> bool:
     Returns:
         bool: True on success, False on failure
     """
+
     if not globals.cmi5_enabled:
         return True
 
@@ -232,7 +234,6 @@ def cmi5_send_answered(question_label: str, question_text: str, user_answer: str
     """
     Send a "cmi5 allowed" question-level 'answered' statement with result.
 
-
     Args:
         question_label (str): question label
         question_text (str): question text
@@ -244,6 +245,7 @@ def cmi5_send_answered(question_label: str, question_text: str, user_answer: str
     Returns:
         bool: True on success, False on failure
     """
+
     if not globals.cmi5_enabled:
         return True
 

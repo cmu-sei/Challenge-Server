@@ -12,14 +12,26 @@
 # Please reference `grading_README.md` to understand grading script requirements.
 #####
 
-import json, sys, os
+import json
+import sys
+from typing import Optional, Dict
 
-# 'submission' will contain text submitted to the question by the user
-def grade(submission=None):
-    results = dict()
+
+def grade(submission: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """
+    Grade a user's submission by checking specific answers against expected values.
+
+    Args:
+        submission (Optional[Dict[str, str]]): A dictionary containing user-submitted answers.
+
+    Returns:
+        Dict[str, str]: A dictionary mapping each grading check to 'Success' or 'Failure'.
+    """
+
+    results = {}
 
     # GradingCheck1
-    if submission.get('GradingCheck1') == 'b':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
+    if submission.get('GradingCheck1') == 'b':
         results['GradingCheck1'] = "Success"
     else:
         results['GradingCheck1'] = "Failure"
@@ -48,8 +60,7 @@ def grade(submission=None):
 if __name__ == '__main__':
     args = sys.argv[1:]
     submissions = json.loads(args[0]) if args else None
-    results = dict()
-    results.update(grade(submissions))
+    results = grade(submissions)
 
-    for key,value in results.items():
+    for key, value in results.items():
         print(key, ' : ', value)

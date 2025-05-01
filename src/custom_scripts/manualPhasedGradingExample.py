@@ -8,25 +8,42 @@
 # DM24-0645
 #
 
-#####
-# Please reference `grading_README.md` to understand grading script requirements.
-#####
+import json
+import sys
+from typing import Optional, Dict
 
-import json, sys
+def phase1(submission: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """
+    Grade logic for phase 1. Checks whether the submitted answer for GradingCheck1 is correct.
 
-# 'submission' will contain text submitted to the question by the user
-def phase1(submission=None):
-    results = dict()
-    if submission['GradingCheck1'] == 'test1':      # This is just an example that checks if the data passed (if any) passes the required condition to pass the grading check
+    Args:
+        submission (Optional[Dict[str, str]]): A dictionary containing user submissions.
+
+    Returns:
+        Dict[str, str]: A dictionary with the result for GradingCheck1.
+    """
+
+    results = {}
+    if submission and submission.get('GradingCheck1') == 'test1':
         results['GradingCheck1'] = "Success"
     else:
         results['GradingCheck1'] = "Failure"
     return results
 
 
-def phase2(submission=None):
-    results = dict()
-    if submission['GradingCheck2'] == 'test2':
+def phase2(submission: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """
+    Grade logic for phase 2. Checks whether the submitted answer for GradingCheck2 is correct.
+
+    Args:
+        submission (Optional[Dict[str, str]]): A dictionary containing user submissions.
+
+    Returns:
+        Dict[str, str]: A dictionary with the result for GradingCheck2.
+    """
+
+    results = {}
+    if submission and submission.get('GradingCheck2') == 'test2':
         results['GradingCheck2'] = "Success"
     else:
         results['GradingCheck2'] = "Failure"
@@ -34,16 +51,17 @@ def phase2(submission=None):
 
 
 if __name__ == '__main__':
-    # phases variable should contain list of all phases implemented in the challenge & has a function declared above
-    phases = ['phase1','phase2']
+    # List of all supported phases
+    phases = ['phase1', 'phase2']
     args = sys.argv[1:]
     passed_phase = args[-1].strip().lower()
+
     if passed_phase in phases:
-        ## This code will execute IF phases is enabled & current phase was passed to script.
+        # Remove phase name argument, parse the submission, and run the corresponding function
         args.pop(-1)
         submissions = json.loads(args[0]) if args else None
         results = globals()[passed_phase](submissions)
-        for key,value in results.items():
+        for key, value in results.items():
             print(key, ' : ', value)
     else:
         print(f"Passed phase ({passed_phase}) does not exist", file=sys.stderr)

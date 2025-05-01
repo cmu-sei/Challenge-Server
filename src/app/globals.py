@@ -15,7 +15,12 @@ from datetime import timedelta, time
 from app.env import get_clean_env
 
 class Globals():
-    def __init__(self):
+    """
+    Defines globally accessible variables.
+    These are typically app configurations.
+    """
+
+    def __init__(self) -> None:
         # app config
         self.app_host = None
         self.app_port = None
