@@ -12,7 +12,7 @@
 import os
 from app.extensions import globals
 
-class Config:
+class FlaskConfig:
     """
     Flask application configuration.
     """
