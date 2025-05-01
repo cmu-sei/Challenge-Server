@@ -14,7 +14,7 @@ from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
 from app import create_app, start_grading_server, run_startup_scripts
-from app.functions import read_config
+from app.config import read_config
 from app.grading import done_grading
 from app.portServiceChecker import get_logs, waitForService, checkServiceLoop, checkLocalPortLoop
 from app.extensions import logger, globals
