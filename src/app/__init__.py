@@ -13,7 +13,7 @@ import threading, subprocess, signal, os, json, datetime, sys
 from flask import Flask, url_for, redirect, flash, request, Response
 from typing import Tuple
 from config import Config
-from app.functions import run_cron_thread
+from app.cron import run_cron_thread
 from app.extensions import globals, logger, db
 from app.models import EventTracker
 
