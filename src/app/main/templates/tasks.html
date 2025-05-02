@@ -22,11 +22,10 @@ DM24-0645
 </span>
 {% else %}
 <span id="title" style="padding-top:20px;">
-    Tasks
+    <h2>Tasks</h2>
 </span>
 
-<fieldset>
-    <!--<legend align='center'>Challenge Questions</legend>-->
+<fieldset style="width:70%;">
     {% if 'new_uploads' in questions.keys() %}
     <table class="res-table">
         <form id="uploadForm" method="POST" action="{{url_for('main.upload')}}" enctype="multipart/form-data">
