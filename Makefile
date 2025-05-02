@@ -13,7 +13,7 @@ REQUIREMENTS := requirements.txt
 APP_DIR := ./src
 APP := app.py
 
-.PHONY: all venv run update freeze clean test docker-build docker-run docker-compose docker-all
+.PHONY: all venv run debug update freeze clean test docker-build docker-run docker-compose docker-all
 
 all: venv run
 
@@ -24,6 +24,9 @@ venv:
 
 run:
 	rm -f $(APP_DIR)/challenge.db && cd $(APP_DIR) && sudo ../$(VENV_DIR)/bin/python $(APP)
+
+debug:
+	rm -f $(APP_DIR)/challenge.db && cd $(APP_DIR) && sudo ../$(VENV_DIR)/bin/python $(APP) --debug
 
 test:
 	rm -f $(APP_DIR)/challenge.db && cd $(APP_DIR) && sudo token1="MyToken1" token2="MyToken2" token3="MyToken3" token4="MyToken4" ../$(VENV_DIR)/bin/python $(APP)

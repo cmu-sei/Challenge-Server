@@ -9,7 +9,7 @@
 #
 
 
-import threading, os, sys
+import threading, os, sys, argparse, logging
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -26,6 +26,18 @@ if __name__ == '__main__':
     """
     Start the threads and handle running the server
     """
+
+    parser = argparse.ArgumentParser(description="Challenge Server")
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
+    args = parser.parse_args()
+
+    if args.debug:
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        for h in root.handlers:
+            h.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
 
     if os.geteuid() != 0:
         logger.error("Must be run by root.")
