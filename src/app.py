@@ -14,10 +14,11 @@ from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
 from app import create_app, start_grading_server, run_startup_scripts
-from app.config import read_config
 from app.grading import done_grading
 from app.portServiceChecker import get_logs, waitForService, checkServiceLoop, checkLocalPortLoop
-from app.extensions import logger, globals
+from app.extensions import globals, logger
+from app.globals import Globals
+from app.databaseHelpers import initialize_db
 
 # Create flask app obj
 app = create_app()
@@ -37,7 +38,10 @@ if __name__ == '__main__':
     # Read the configuration
     logger.info(f"Starting up")
     logger.info("Operating in a Workspace" if globals.in_workspace else "Operating in a Gamespace")
-    read_config(app)
+    Globals.from_yaml(globals)
+
+    # Initialize Database
+    initialize_db(app, globals.conf)
 
     # start the website
     grading_server_thread = threading.Thread(target=start_grading_server, name="GradingServer", args=(app,))

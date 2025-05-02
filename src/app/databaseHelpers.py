@@ -11,10 +11,67 @@
 
 import datetime, json, sys
 from typing import Any
-from flask import current_app
+from flask import current_app, Flask
 from app.cmi5 import cmi5_send_answered, cmi5_send_completed
-from app.extensions import db, globals, logger, record_solves_lock
+from app.extensions import db, globals, record_solves_lock, logger
 from app.models import EventTracker, PhaseTracking, QuestionTracking
+
+
+def initialize_db(app: Flask, conf: dict) -> None:
+            # Initialize phases & add to DB
+        with app.app_context():
+            if conf['grading'].get('phases'):
+                globals.phases_enabled = True
+                if ( not conf['grading'].get('phase_info') or (len(conf['grading']['phase_info']) == 0)):
+                    logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
+                    sys.exit(1)
+                globals.phases = conf['grading']['phase_info']
+                globals.phase_order = sorted(list(globals.phases.keys()),key=str.casefold)
+                if 'mini_challenge' in globals.phase_order:
+                    tmp = globals.phase_order.pop(0)
+                    globals.phase_order.append(tmp)
+                try:
+                    globals.current_phase = get_current_phase()
+                except KeyError as e:
+                    globals.current_phase = globals.phase_order[0]
+
+                p_restart = False
+                try:
+                    p_chk = PhaseTracking.query.all()
+                    if len(p_chk) == len(globals.phases):
+                        p_restart = True
+                except Exception as e:
+                    ...
+                if not p_restart:
+                    try:
+
+                        for ind,phase in enumerate(globals.phase_order):
+                            new_phase = PhaseTracking(id=ind, label=phase, tasks=','.join(globals.phases[phase]), solved=False,time_solved="---")
+                            db.session.add(new_phase)
+                            db.session.commit()
+                    except Exception as e:
+                        logger.error(f"Unable to add phase {phase} to DB. Exception:{e}.\nExiting.")
+                        sys.exit(1)
+
+            ## Add questions to DB for tracking
+            globals.question_order = sorted(list(globals.grading_parts.keys()),key=str.casefold)
+            q_restart = False
+            try:
+                q_chk = QuestionTracking.query.all()
+                if len(q_chk) == len(globals.grading_parts):
+                    q_restart = True
+            except Exception as e:
+                print(e)
+            if not q_restart:
+                try:
+                    for index,key in enumerate(globals.question_order,start=1):
+                        new_question = QuestionTracking(id=index,label=key,task=globals.grading_parts[key]['text'],response="",q_type=globals.grading_parts[key]['mode'],solved=False,time_solved="---")
+                        db.session.add(new_question)
+                        db.session.commit()
+                except Exception as e:
+                    logger.error(', '.join(globals.question_order))
+                    logger.error(f"Unable to add question {key} to DB. Exception:{e}.\nExiting.")
+                    sys.exit(1)
 
 
 def record_solves() -> None:
