@@ -28,12 +28,12 @@ def cmi5_read_variables(env_key: str, config_section: dict, config_key: str) -> 
 
     env_value = get_clean_env(env_key)
     if env_value:
-        logger.info(f"CMI5 {config_key}: {env_value}")
+        logger.debug(f"CMI5 {config_key}: {env_value}")
         return env_value
 
     config_value = (config_section or {}).get(config_key)
     if config_value:
-        logger.info(f"CMI5 {config_key}: {config_value}")
+        logger.debug(f"CMI5 {config_key}: {config_value}")
         return config_value
 
     logger.error(f"[cmi5] Missing required variable '{config_key}'. Please set it as an environment variable or in the config.")

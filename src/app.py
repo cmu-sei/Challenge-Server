@@ -60,7 +60,7 @@ if __name__ == '__main__':
     grading_server_thread.start()
 
     # wait for blocking services to come up
-    logger.info(f"Waiting for blocking services to become available")
+    logger.debug(f"Waiting for blocking services to become available")
     globals.blocking_threadpool.map(waitForService, globals.blocking_services)
     globals.blocking_threadpool.shutdown(wait=True)
     logger.info(f"All blocking services are available")

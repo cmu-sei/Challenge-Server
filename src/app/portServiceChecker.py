@@ -68,15 +68,15 @@ def isIPv4(host: str) -> bool:
     """
 
     if isValidIPv4(host):
-        logger.info(f"Regex matched {host} as a valid IPv4 address")
+        logger.debug(f"Regex matched {host} as a valid IPv4 address")
         return True
     elif isValidIPv6(host):
-        logger.info(f"Regex matched {host} as a valid IPv6 address")
+        logger.debug(f"Regex matched {host} as a valid IPv6 address")
         return False
     else:
         try:
             ipAddr = socket.gethostbyname(str(host))
-            logger.info(f"Resolved IPv4 address is {ipAddr}")
+            logger.debug(f"Resolved IPv4 address of {host} is {ipAddr}")
             return True
         except socket.gaierror as e:
             errNum = e.errno
@@ -154,13 +154,13 @@ def checkPing(host: str, count: int = 1) -> bool:
         bool:     Returns True if the host can be pinged. Returns False if the host cannot be pinged.
     """
 
-    logger.info(f"Pinging host {host}")
+    logger.debug(f"Pinging host {host}")
     try:
         results = subprocess.run(f"ping {host} -W 1 -c {count}", shell=True, capture_output=True)
         exit_code = results.returncode
         stdout_string = " \\n ".join(line.strip() for line in results.stdout.decode("UTF-8").splitlines())
         stderr_string = " \\n ".join(line.strip() for line in results.stderr.decode("UTF-8").splitlines())
-        logger.info(f"Exit code {exit_code} from pinging {host}")
+        logger.debug(f"Exit code {exit_code} from pinging {host}")
         if exit_code == 0:
             logger.info(f"Successful ping to host {host} - {stdout_string}")
             return True
@@ -185,7 +185,7 @@ def checkSocket(host: str, port: str|int) -> bool:
 
     """
 
-    logger.info(f"Attempting to connect to socket {host}:{port}")
+    logger.debug(f"Attempting to connect to socket {host}:{port}")
     success = False
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) if isIPv4(host) else socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
@@ -222,17 +222,17 @@ def checkWeb(host: str, port: str|int = 80, path:str = '/') -> bool:
     fqdn = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
     if fqdn.search(host):  # Check if host is FQDN. If True, IP version does not matter.
         url = f"http://{host}:{port}{path}"
-        logger.info("checkWeb is using FQDN")
+        logger.debug("checkWeb is using FQDN")
 
     #  If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
     elif isIPv4(host):
         url = f"http://{host}:{port}{path}"
-        logger.info("checkWeb is using IPv4")
+        logger.debug("checkWeb is using IPv4")
     else:
         url = f"http://[{host}]:{port}{path}"
-        logger.info("checkWeb is using IPv6")
+        logger.debug("checkWeb is using IPv6")
 
-    logger.info(f"Attempting to reach {url}")
+    logger.debug(f"Attempting to reach {url}")
     try:
         result = requests.get(url=url)
         logger.info(f"Web request returned {result.status_code}: {result.content}")
@@ -262,7 +262,7 @@ def checkService(service: dict) -> bool:
               Returns False if the service is unreachable.
     """
 
-    logger.info(f"Checking availability of service: {service}")
+    logger.debug(f"Checking availability of service: {service}")
     reachable = False
     service_type = service['type']
     if service_type == 'ping':

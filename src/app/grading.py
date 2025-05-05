@@ -72,7 +72,7 @@ def do_grade(args: dict) -> tuple[dict,dict]:
             return get_results(results)
 
     try:
-        logger.info(f"Grading command is: {grade_cmd}")
+        logger.debug(f"Grading command is: {grade_cmd}")
         out = subprocess.run(grade_cmd, capture_output=True, check=True)
         logger.info(f"Grading script finished: {out}")
         output = out.stdout.decode('utf-8')
@@ -136,7 +136,7 @@ def get_results(results: dict) -> tuple[dict,dict]:
     tokens = {}
     for key, value in results.items():
         if key not in globals.grading_parts.keys():
-            logger.info(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
+            logger.debug(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
             del end_results[key]
         if "success" in value.lower():
             tokens[key] = read_token(key)
@@ -179,7 +179,7 @@ def post_submission(tokens: dict) -> Any:
     ## log error if still failure after 4 tries
     attempts = 0
     while attempts < 4:
-        logger.info(f"Attempting {globals.grading_verb} submission to URL: {globals.grader_url}\tHeaders: {headers}\tPayload: {payload}")
+        logger.debug(f"Attempting {globals.grading_verb} submission to URL: {globals.grader_url}\tHeaders: {headers}\tPayload: {payload}")
         attempts = attempts + 1
         try:
             if globals.grading_verb == "POST":
@@ -205,7 +205,7 @@ def post_submission(tokens: dict) -> Any:
             logger.error(f"Got exception {e} while trying to PUT/POST data to {globals.grader_url}")
 
         sleep(1)
-        logger.info("Trying grader submission again after failure on previous attempt.")
+        logger.debug("Trying grader submission again after failure on previous attempt.")
 
 
     logger.error(f"All attempts to submit results to grader failed.\tURL: {globals.grader_url}\tVerb: {globals.grading_verb}\tHeaders: {headers}\tPayload: {payload}")
@@ -223,8 +223,8 @@ def done_grading(future: Future) -> None:
     """
 
     results, tokens = future.result()
-    logger.info(f"Server sees {globals.manual_grading_script} results as: {results}")
-    logger.info(f"Server sees tokens as: {tokens}")
+    logger.debug(f"Server sees {globals.manual_grading_script} results as: {results}")
+    logger.debug(f"Server sees tokens as: {tokens}")
 
     # save results and tokens so they can be accessed globally
     globals.manual_results = results
