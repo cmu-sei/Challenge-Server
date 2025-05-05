@@ -9,7 +9,7 @@
 #
 
 
-import threading, os, sys
+import threading, os, sys, argparse, logging
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -20,12 +20,73 @@ from app.extensions import globals, logger
 from app.globals import Globals
 from app.databaseHelpers import initialize_db
 
+
+LOG_LEVELS = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL,
+}
+
+
+def valid_log_level(level:str) -> str:
+    """
+    Ensure log level is valid and transform to uppercase.
+
+    Args:
+        level (str): Log level.
+
+    Raises:
+        argparse.ArgumentTypeError: Raised if invalid log level is provided.
+
+    Returns:
+        str: Log level (uppercase)
+    """
+
+    level_str = level.upper()
+    if level_str not in LOG_LEVELS:
+        raise argparse.ArgumentTypeError(f"Invalid log level: {level}")
+    return level_str
+
+
+def configure_logging(level: str):
+    """
+    Configures logging for the given level.
+
+    Args:
+        level (str): Log level
+    """
+
+    log_level = LOG_LEVELS[level]
+    root = logging.getLogger()
+    root.setLevel(log_level)
+    for h in root.handlers:
+        h.setLevel(log_level)
+    logger.setLevel(log_level)
+    logger.debug("Debug logs enabled")
+    logger.info("Info logs enabled")
+
+
 # Create flask app obj
 app = create_app()
 if __name__ == '__main__':
     """
     Start the threads and handle running the server
     """
+
+    parser = argparse.ArgumentParser(description="Challenge Server")
+    parser.add_argument('--debug', action='store_true', help="Enable debug logging. This overrides --log-level.")
+    parser.add_argument('--log-level', help="Set the log level to : DEBUG, INFO, WARNING, ERROR, CRITICAL.",
+                        default="INFO")
+    args = parser.parse_args()
+
+    log_level = valid_log_level(args.log_level)
+
+    if args.debug:
+        log_level = "DEBUG"
+
+    configure_logging(log_level)
 
     if os.geteuid() != 0:
         logger.error("Must be run by root.")
@@ -48,7 +109,7 @@ if __name__ == '__main__':
     grading_server_thread.start()
 
     # wait for blocking services to come up
-    logger.info(f"Waiting for blocking services to become available")
+    logger.debug(f"Waiting for blocking services to become available")
     globals.blocking_threadpool.map(waitForService, globals.blocking_services)
     globals.blocking_threadpool.shutdown(wait=True)
     logger.info(f"All blocking services are available")

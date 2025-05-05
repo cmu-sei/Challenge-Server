@@ -31,7 +31,7 @@ def set_cron_vars(conf: dict) -> None:
     if not globals.cron_grading_script:
         logger.error(f"Cron grading not script defined.")
         sys.exit(1)
-    logger.info(f"Cron grading script: {globals.custom_script_dir}/{globals.cron_grading_script}")
+    logger.debug(f"Cron grading script: {globals.custom_script_dir}/{globals.cron_grading_script}")
     try:
         if not os.access(f"{globals.custom_script_dir}/{globals.cron_grading_script}", os.X_OK):
             logger.error(f"Cron grading script {globals.custom_script_dir}/{globals.cron_grading_script} is not executable")
@@ -41,16 +41,16 @@ def set_cron_vars(conf: dict) -> None:
         sys.exit(1)
 
     globals.cron_interval = int(get_clean_env('CS_CRON_INTERVAL') or conf['grading'].get('cron_interval') or 60)
-    logger.info(f"cron_interval: {globals.cron_interval}")
+    logger.debug(f"cron_interval: {globals.cron_interval}")
 
     globals.cron_limit = int(get_clean_env('CS_CRON_LIMIT') or conf['grading'].get('cron_limit') or -1)
-    logger.info(f"cron_limit: {globals.cron_limit}")
+    logger.debug(f"cron_limit: {globals.cron_limit}")
 
     globals.cron_delay = int(get_clean_env('CS_CRON_DELAY') or conf['grading'].get('cron_delay') or 0)
-    logger.info(f"cron_delay: {globals.cron_delay}")
+    logger.debug(f"cron_delay: {globals.cron_delay}")
 
     globals.cron_at = get_clean_env('CS_CRON_AT') or conf['grading'].get('cron_at') or None
-    logger.info(f"cron_at: {globals.cron_at}")
+    logger.debug(f"cron_at: {globals.cron_at}")
 
     # calculates the total delay by using the cron_at setting and adding it to the cron_delay
     if globals.cron_at is not None:
@@ -59,7 +59,7 @@ def set_cron_vars(conf: dict) -> None:
         current_time = datetime.datetime.now()
 
         start_time = datetime.datetime(current_time.year, current_time.month, current_time.day, hour=int(time[0]), minute=int(time[1]))
-        logger.info(f"Cron style grading should begin at {start_time}")
+        logger.debug(f"Cron style grading should begin at {start_time}")
 
         time_diff = (start_time - current_time).total_seconds()
     else:
@@ -111,15 +111,15 @@ def do_cron_grade() -> tuple[dict,dict]:
     tokens = {}
     for key, value in results.items():
         if key not in globals.grading_parts.keys():
-            logger.info(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
+            logger.debug(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
             del end_results[key]
         if "success" in value.lower():
             tokens[key] = read_token(key)
         else:
             tokens[key] = "You did not earn a token for this part"
 
-    logger.info(f"Grading Results: {end_results}")
-    logger.info(f"Grading tokens: {tokens}")
+    logger.debug(f"Grading Results: {end_results}")
+    logger.debug(f"Grading tokens: {tokens}")
     return end_results, tokens
 
 
@@ -138,7 +138,7 @@ def run_cron_thread() -> None:
         cron_attempts += 1
         globals.cron_limit = globals.cron_limit - 1
         globals.cron_submit_time = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-        logger.info(f"Starting cron grading attempt number {cron_attempts}")
+        logger.debug(f"Starting cron grading attempt number {cron_attempts}")
         globals.cron_results, tokens = do_cron_grade()
         globals.tokens['cron'] = tokens
         if globals.grader_post:
