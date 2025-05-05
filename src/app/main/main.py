@@ -12,8 +12,10 @@
 import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g, Response
 from typing import Any
+from app.databaseHelpers import check_questions
+from app.grading import do_grade
 from app.extensions import logger, globals
-from app.functions import do_grade, check_questions,read_token
+from app.grading import read_token
 from app.fileUploads import save_uploaded_file, get_most_recent_uploads
 from app.models import QuestionTracking
 
@@ -137,7 +139,7 @@ def grade() -> Response:
             req_data = request.form.to_dict()
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
-            logger.info(f"Calling do_grade with data: {req_data}")
+            logger.debug(f"Calling do_grade with data: {req_data}")
 
             # Make sure the grading script gets all grading check keys even if the user didn't enter anything.
             user_did_not_submit = {check_name: '' for check_name in globals.grading_parts}
@@ -149,12 +151,12 @@ def grade() -> Response:
     # if the current grading task is done, collect and display the results
     if globals.task.done():
         globals.task = None
-        logger.info(f"Rendering graded results html page for user. Fatal error is {globals.fatal_error}")
+        logger.debug(f"Rendering graded results html page for user. Fatal error is {globals.fatal_error}")
         return redirect(url_for('main.results'))
 
     # if the current grading task is still running, show the grading page with the last submit time
     if globals.task.running():
-        logger.info("Grading task is still running")
+        logger.debug("Grading task is still running")
         return render_template('grading.html', submit_time=globals.manual_submit_time)
 
 
@@ -209,7 +211,7 @@ def updated_results() -> Response:
                     break_loop = True
             except Exception as e:
                 break_loop = True
-                logger.info(f"Exception while querying grading results (may be due to attempting to see results before grading). Exception: {str(e)}")
+                logger.error(f"Exception while querying grading results (may be due to attempting to see results before grading). Exception: {str(e)}")
             if break_loop:
                 break
         if "01/01/1900" in globals.manual_submit_time:
@@ -257,7 +259,7 @@ def list_files(folder) -> Response:
 
     if globals.hosted_files_enabled:
         if not globals.server_ready:
-            logger.info("Tried to view files before server was marked as ready.")
+            logger.debug("Tried to view files before server was marked as ready.")
             return redirect(url_for("main.home"))
         files = {}
         dirs = {}
@@ -291,7 +293,7 @@ def get_file(path) -> Response:
             return redirect(url_for('main.list_files'))
         filePath = os.path.join(globals.hosted_file_directory, path)
         if not globals.server_ready:
-            logger.info("Tried to download files before server was marked as ready.")
+            logger.debug("Tried to download files before server was marked as ready.")
             return redirect(url_for("main.home"))
         if os.path.isfile(filePath) :
             logger.info(f"User is downloading file {filePath}")

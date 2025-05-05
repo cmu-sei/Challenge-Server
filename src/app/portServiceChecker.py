@@ -12,7 +12,7 @@
 import subprocess, re, socket, requests
 from datetime import datetime
 from time import sleep
-from app.extensions import logger
+from app.extensions import globals, logger
 
 
 def checkLocalPorts() -> str:
@@ -68,15 +68,15 @@ def isIPv4(host: str) -> bool:
     """
 
     if isValidIPv4(host):
-        logger.info(f"Regex matched {host} as a valid IPv4 address")
+        logger.debug(f"Regex matched {host} as a valid IPv4 address")
         return True
     elif isValidIPv6(host):
-        logger.info(f"Regex matched {host} as a valid IPv6 address")
+        logger.debug(f"Regex matched {host} as a valid IPv6 address")
         return False
     else:
         try:
             ipAddr = socket.gethostbyname(str(host))
-            logger.info(f"Resolved IPv4 address is {ipAddr}")
+            logger.debug(f"Resolved IPv4 address of {host} is {ipAddr}")
             return True
         except socket.gaierror as e:
             errNum = e.errno
@@ -154,13 +154,13 @@ def checkPing(host: str, count: int = 1) -> bool:
         bool:     Returns True if the host can be pinged. Returns False if the host cannot be pinged.
     """
 
-    logger.info(f"Pinging host {host}")
+    logger.debug(f"Pinging host {host}")
     try:
         results = subprocess.run(f"ping {host} -W 1 -c {count}", shell=True, capture_output=True)
         exit_code = results.returncode
         stdout_string = " \\n ".join(line.strip() for line in results.stdout.decode("UTF-8").splitlines())
         stderr_string = " \\n ".join(line.strip() for line in results.stderr.decode("UTF-8").splitlines())
-        logger.info(f"Exit code {exit_code} from pinging {host}")
+        logger.debug(f"Exit code {exit_code} from pinging {host}")
         if exit_code == 0:
             logger.info(f"Successful ping to host {host} - {stdout_string}")
             return True
@@ -185,7 +185,7 @@ def checkSocket(host: str, port: str|int) -> bool:
 
     """
 
-    logger.info(f"Attempting to connect to socket {host}:{port}")
+    logger.debug(f"Attempting to connect to socket {host}:{port}")
     success = False
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) if isIPv4(host) else socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
@@ -222,17 +222,17 @@ def checkWeb(host: str, port: str|int = 80, path:str = '/') -> bool:
     fqdn = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)')
     if fqdn.search(host):  # Check if host is FQDN. If True, IP version does not matter.
         url = f"http://{host}:{port}{path}"
-        logger.info("checkWeb is using FQDN")
+        logger.debug("checkWeb is using FQDN")
 
     #  If host is an IP address, IP version is checked as IPv6 requires [ ] brackets
     elif isIPv4(host):
         url = f"http://{host}:{port}{path}"
-        logger.info("checkWeb is using IPv4")
+        logger.debug("checkWeb is using IPv4")
     else:
         url = f"http://[{host}]:{port}{path}"
-        logger.info("checkWeb is using IPv6")
+        logger.debug("checkWeb is using IPv6")
 
-    logger.info(f"Attempting to reach {url}")
+    logger.debug(f"Attempting to reach {url}")
     try:
         result = requests.get(url=url)
         logger.info(f"Web request returned {result.status_code}: {result.content}")
@@ -262,7 +262,7 @@ def checkService(service: dict) -> bool:
               Returns False if the service is unreachable.
     """
 
-    logger.info(f"Checking availability of service: {service}")
+    logger.debug(f"Checking availability of service: {service}")
     reachable = False
     service_type = service['type']
     if service_type == 'ping':
@@ -334,3 +334,70 @@ def checkServiceLoop(service: dict, interval: int = 30, max_checks: int = 0) -> 
             logger.info(f"Reached the maximum number of service checks ({max_checks}).. Will no longer check on service {service}.")
             return True
         sleep(interval)
+
+
+def get_logs(service: dict) -> None:
+    """Get the logs of a logged service by using SSH.
+
+    Args:
+        service (dict): Service dictionary
+    """
+
+    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    while True:
+        sleep(10)
+        error = ''
+        try:
+            ## `systemctl is-active` to get/log service info
+            get_status_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'systemctl is-active {service['service']}'"
+            status_response = subprocess.run(get_status_cmd, shell=True,capture_output=True, timeout=10)
+        except subprocess.TimeoutExpired:
+            logger.error(f"SERVICE_LOGGER: request to host timed out.")
+            globals.services_status[service['service']] = [service['host'],f"request to host timed out. Trying again shortly"]
+            continue
+        except Exception as e:
+            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve service status: {e}")
+            globals.services_status[service['service']] = [service['host'],f"Exception attempting to retrieve service status."]
+            continue
+        if status_response.stdout.decode('utf-8') == '':
+            logger.error(f"SERVICE_LOGGER: Failed to get service status. Error: {status_response.stderr.decode('utf-8')}")
+            globals.services_status[service['service']] = [service['host'],f"Error has occurred when attempting to get service status."]
+            continue
+        if status_response.stdout.decode('utf-8').strip('\n') == 'failed':
+            error = "SERVICE FAILED: "
+            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
+            globals.services_status[service['service']] = [service['host'],f"Service is in failed state."]
+        elif status_response.stdout.decode('utf-8').strip('\n') == 'inactive':
+            error = "SERVICE INACTIVE: "
+            logger.error(f"SERVICE_LOGGER: {error} {service['service']}")
+            globals.services_status[service['service']] = [service['host'],f"Service is in inactive state."]
+        else:
+            globals.services_status[service['service']] = [service['host'],f"Service is in active state."]
+        ## grab logs
+        try:
+            get_log_cmd = f"sshpass -p {service['password']} ssh -o StrictHostKeyChecking=no {service['user']}@{service['host']} 'journalctl --since \"{log_time}\" -u {service['service']}'"
+            log_response = subprocess.run(get_log_cmd, shell=True,capture_output=True,timeout=10)
+            cur_logs = log_response.stdout.decode('utf-8')
+        except subprocess.TimeoutExpired:
+            logger.error(f"SERVICE_LOGGER: SSH connection to {service['user']}@{service['host']} timed out.")
+            continue
+        except Exception as e:
+            logger.error(f"SERVICE_LOGGER: Exception attempting to retrieve logs: {e}")
+            continue
+        if log_response.stdout.decode('utf-8') == '':
+            logger.error(f"SERVICE_LOGGER: Failed to collect logs. Error: {log_response.stderr.decode('utf-8')}")
+            continue
+        if "No entries" in cur_logs:
+            if error:
+                logger.error(f"SERVICE_LOGGER: {error} No new logs fe.")
+            else:
+                logger.info(f"SERVICE_LOGGER: No new logs found at this time.")
+            continue
+        output = cur_logs.split("\n")
+        output.remove("")
+        for line in output:
+            if error == False:
+                logger.info(f"SERVICE_LOGGER: {line}")
+            else:
+                logger.error("SERVICE_LOGGER: "+ error + line)
+        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

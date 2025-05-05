@@ -12,13 +12,13 @@
 import threading, subprocess, signal, os, json, datetime, sys
 from flask import Flask, url_for, redirect, flash, request, Response
 from typing import Tuple
-from config import Config
-from app.functions import run_cron_thread
+from flaskConfig import FlaskConfig
+from app.cron import run_cron_thread
 from app.extensions import globals, logger, db
 from app.models import EventTracker
 
 
-def create_app(config_class: Config = Config) -> Flask:
+def create_app(config_class: FlaskConfig = FlaskConfig) -> Flask:
     """
     Create the Flask application
 
@@ -74,7 +74,7 @@ def create_app(config_class: Config = Config) -> Flask:
             """
 
             if not globals.server_ready:
-                logger.info(f"Tried to access site before server was marked as ready.")
+                logger.debug(f"Tried to access site before server was marked as ready.")
                 flash("Please Note:<br>The challenge is still starting up and some features may not be available. If an issue occurs, please wait a little bit and refresh. The challenge is ready if this message is not present upon refresh.")
 
         @app.before_request
@@ -143,7 +143,7 @@ def run_startup_scripts() -> Tuple[dict[str,str], dict[str,str]]:
         return successes, errors
 
     for startup_script in globals.startup_scripts:
-        logger.info(f"Calling {startup_script}")
+        logger.debug(f"Calling {startup_script}")
 
         # run the startup script and parse output into a dict
         ## The output variable has properties output.stdout  and  output.stderr
