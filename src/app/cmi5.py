@@ -13,24 +13,39 @@ from app.extensions import logger, globals
 from app.env import get_clean_env
 
 
-def cmi5_read_variables(env_key, config_section, config_key):
+def cmi5_read_variables(env_key: str, config_section: dict, config_key: str) -> str:
+    """
+    Reads required CMI variables
+
+    Args:
+        env_key (str): Env Var name
+        config_section (dict): Config dict
+        config_key (str): Config var name
+
+    Returns:
+        str: value of a CMI5 configuration
+    """
+
     env_value = get_clean_env(env_key)
     if env_value:
-        logger.info(f"CMI5 {config_key}: {env_value}")
+        logger.debug(f"CMI5 {config_key}: {env_value}")
         return env_value
 
     config_value = (config_section or {}).get(config_key)
     if config_value:
-        logger.info(f"CMI5 {config_key}: {config_value}")
+        logger.debug(f"CMI5 {config_key}: {config_value}")
         return config_value
 
     logger.error(f"[cmi5] Missing required variable '{config_key}'. Please set it as an environment variable or in the config.")
     return ''
 
 
-def cmi5_load_variables(conf):
+def cmi5_load_variables(conf: dict) -> None:
     """
-    Loads CMI5 values into globals.
+    Load CMI5 variables into globals
+
+    Args:
+        conf (dict): configuration
     """
 
     cmi5_conf = conf.get('cmi5') or {}
@@ -67,9 +82,16 @@ def cmi5_load_variables(conf):
     globals.cmi5_context = context
 
 
-def send_cmi5_statement(statement: dict, statement_id: str):
+def send_cmi5_statement(statement: dict, statement_id: str) -> bool:
     """
-    Sends a single xAPI statement
+    Sends a CMI5 statement
+
+    Args:
+        statement (dict): Statement to send
+        statement_id (str): Statement ID to send
+
+    Returns:
+        bool: True on success, False on failure
     """
 
     # Uses the same UUID generated in the statement
@@ -78,7 +100,7 @@ def send_cmi5_statement(statement: dict, statement_id: str):
     endpoint = f"{globals.cmi5_endpoint}/statements?statementId={statement_id}"
     if not endpoint:
         logger.error(f"[cmi5] No value found for key: {endpoint}")
-        return None
+        return False
 
     headers = {
         "Content-Type": "application/json",
@@ -90,19 +112,26 @@ def send_cmi5_statement(statement: dict, statement_id: str):
         resp = requests.put(endpoint, json=statement, headers=headers, timeout=5)
         if resp.status_code not in (204,):
             logger.error(f"[cmi5] Failed to send PUT statement: {resp.status_code} {resp.text}")
+            return False
         else:
             verb_id = statement.get("verb", {}).get("id", "")
             logger.info(f"[cmi5] Successfully sent CMI5 statement (verb={verb_id}, id={statement_id}).")
+            return True
     except Exception as e:
         logger.error(f"[cmi5] Exception sending statement: {e}")
+        return False
 
 
-def cmi5_send_completed():
+def cmi5_send_completed() -> bool:
     """
     Send a "cmi5 defined" 'completed' statement at the AU level.
+
+    Returns:
+        bool: True on success, False on failure
     """
+
     if not globals.cmi5_enabled:
-        return
+        return True
 
     now = datetime.datetime.now(datetime.timezone.utc)
     statement_id = str(uuid.uuid4())
@@ -142,16 +171,23 @@ def cmi5_send_completed():
         ]),
         "timestamp": now.isoformat()
     }
-    send_cmi5_statement(statement, statement_id)
-    cmi5_send_terminated()
+    if not send_cmi5_statement(statement, statement_id):
+        return False
+    if not cmi5_send_terminated():
+        return False
+    return True
 
 
-def cmi5_send_terminated():
+def cmi5_send_terminated() -> bool:
     """
     Send a "cmi5 defined" 'terminated' statement at the AU level when session ends.
+
+    Returns:
+        bool: True on success, False on failure
     """
+
     if not globals.cmi5_enabled:
-        return
+        return True
 
     now = datetime.datetime.now(datetime.timezone.utc)
     statement_id = str(uuid.uuid4())
@@ -188,15 +224,30 @@ def cmi5_send_terminated():
         ]),
         "timestamp": now.isoformat()
     }
-    send_cmi5_statement(statement, statement_id)
+    if not send_cmi5_statement(statement, statement_id):
+        return False
+    return True
 
 
-def cmi5_send_answered(question_label: str, question_text: str, user_answer: str, question_mode: str, question_opts: dict, success: bool):
+def cmi5_send_answered(question_label: str, question_text: str, user_answer: str,
+                       question_mode: str, question_opts: dict, success: bool) -> bool:
     """
     Send a "cmi5 allowed" question-level 'answered' statement with result.
+
+    Args:
+        question_label (str): question label
+        question_text (str): question text
+        user_answer (str): answer from the user
+        question_mode (str): question mode
+        question_opts (dict): question options (if multiple choice)
+        success (bool): was the question answered correctly?
+
+    Returns:
+        bool: True on success, False on failure
     """
+
     if not globals.cmi5_enabled:
-        return
+        return True
 
     statement_id = str(uuid.uuid4())
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -248,13 +299,24 @@ def cmi5_send_answered(question_label: str, question_text: str, user_answer: str
         "timestamp": now.isoformat()
     }
 
-    send_cmi5_statement(statement, statement_id)
+    if not send_cmi5_statement(statement, statement_id):
+        return False
+    return True
 
 
-def cmi5_get_defined_context(categories=None):
+def cmi5_get_defined_context(categories: list = None) -> dict:
     """
-    Appends CMI5-required categories activities to the context (All cmi5 defined statements MUST include all properties and values defined in the contextActivities of the contextTemplate)
+    Appends CMI5-required categories activities to the context (All cmi5 defined
+    statements MUST include all properties and values defined in the contextActivities of the
+    contextTemplate)
+
+    Args:
+        categories (list, optional): list of categories. Defaults to None.
+
+    Returns:
+        dict: CMI5 context dict
     """
+
     context = copy.deepcopy(globals.cmi5_context)
 
     if categories is None:

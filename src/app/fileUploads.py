@@ -18,7 +18,15 @@ def construct_file_save_path(file_key: str) -> str:
     """
     Pick the next ZIP filename for this file_key
     (e.g. "fileset1_3.zip") and return its full path.
+    This includes incrementing the file index by 1.
+
+    Args:
+        file_key (str): Name of the file to save
+
+    Returns:
+        str: Full path of where to save the file
     """
+
     upload_dir = globals.uploaded_file_directory
     os.makedirs(upload_dir, exist_ok=True)
 
@@ -31,7 +39,14 @@ def construct_file_save_path(file_key: str) -> str:
 def get_latest_submission_number(file_key: str) -> int:
     """
     Return the highest submission_number in FileUploads for a given file_key
-    (i.e. filename starting with "<file_key>_"). Returns 0 if none exist.
+    (i.e. filename starting with "<file_key>_").
+    Returns 0 if none exist.
+
+    Args:
+        file_key (str): Name of file to lookup (does not have to include the index)
+
+    Returns:
+        int: Index of the latest submitted file matching the name. 0 is default.
     """
 
     like_pattern = f"{file_key}_%"
@@ -45,6 +60,18 @@ def get_latest_submission_number(file_key: str) -> int:
 
 
 def get_most_recent_file(file_key: str, path=False) -> str:
+    """
+    Get the name or path most recent file with the given file_key.
+
+    Args:
+        file_key (str): Name of file to lookup (without index)
+        path (bool, optional): Set this to true if you want the full path.
+                                Defaults to False, which returns on the file name.
+
+    Returns:
+        str: [description]
+    """
+
     latest = (
             FileUpload.query
             .filter(FileUpload.file_name.like(f"{file_key}_%"))
@@ -59,7 +86,13 @@ def get_most_recent_file(file_key: str, path=False) -> str:
 def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
     """
     For each logical key, return the timestamp of its latest ZIP upload
-    (or None). Queries the FileUploads table only.
+    (or None). Queries the FileUploads table.
+
+    Args:
+        file_keys (list[str]): List of files to lookup.
+
+    Returns:
+        dict[str, str]: A dict of filename:latest timestamp
     """
 
     uploads = {}
@@ -77,9 +110,16 @@ def get_most_recent_uploads(file_keys: list[str]) -> dict[str, str]:
     return uploads
 
 
-def save_uploaded_file(file_key: str, uploaded_files: list[str]):
+def save_uploaded_file(file_key: str, uploaded_files: list[str]) -> str:
     """
     Save files that are uploaded to the file system and the database
+
+    Args:
+        file_key (str): Name of zip to create
+        uploaded_files (list[str]): List of files that are to be included in the zip
+
+    Returns:
+        str: Path to the saved zip file
     """
 
     # update file index

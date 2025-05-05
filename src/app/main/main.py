@@ -10,24 +10,48 @@
 
 
 import datetime, copy, os
-from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g, Response
+from typing import Any
+from app.databaseHelpers import check_questions
+from app.grading import do_grade
 from app.extensions import logger, globals
-from app.functions import do_grade, check_questions,read_token
+from app.grading import read_token
 from app.fileUploads import save_uploaded_file, get_most_recent_uploads
 from app.models import QuestionTracking
 
 main = Blueprint("main",__name__, template_folder='templates', static_folder='static')
 
+
 @main.before_request
-def pass_globals():
+def pass_globals() -> None:
+    """
+    Attach global variables to the `g` object before each request.
+    """
+
     g.globs = globals
 
+
 @main.route('/', methods=['GET'])
-def home():
+def home() -> str:
+    """
+    Render the home page.
+
+    Returns:
+        str: Rendered home page HTML.
+    """
+
     return render_template('home.html')
 
+
 @main.route('/tasks', methods=['GET'])
-def tasks():
+def tasks() -> str:
+    """
+    Render the tasks page.
+
+    Returns:
+        str: Rendered tasks page HTML.
+    """
+
     if globals.grading_enabled == False:
         return render_template("tasks.html")
 
@@ -48,11 +72,16 @@ def tasks():
 
     return render_template('tasks.html', questions=parts_org)
 
+
 @main.route('/upload', methods=['POST'])
-def upload():
-    '''
-    Handle saving submitted files.
-    '''
+def upload() -> Response:
+    """
+    Handle file upload submission.
+
+    Returns:
+        Response: Redirect to the updated tasks page.
+    """
+
     for file_key in globals.grading_uploads['files']:
         uploaded = list(
             filter(
@@ -66,16 +95,17 @@ def upload():
 
         zip_path = save_uploaded_file(file_key, uploaded)
 
-
     return tasks()
 
+
 @main.route('/grade', methods=['GET', 'POST'])
-def grade():
-    '''
-    This method gets called when a user requests grading (presses grade/submit button)
-    The method will create the grading task and render the 'grading page' if the task is still running
-    When grading is done, the 'graded page' will be rendered.
-    '''
+def grade() -> Response:
+    """
+    Handle grading requests, with rate limiting and task management.
+
+    Returns:
+        Response: Render grading or results page, or redirect appropriately.
+    """
 
     if not globals.grading_enabled:
         return redirect(url_for("main.tasks"))
@@ -109,7 +139,7 @@ def grade():
             req_data = request.form.to_dict()
             # POST requests will several form fields to pass to the grading script
             # Arguments to do_grade are the values from the form fields submitted
-            logger.info(f"Calling do_grade with data: {req_data}")
+            logger.debug(f"Calling do_grade with data: {req_data}")
 
             # Make sure the grading script gets all grading check keys even if the user didn't enter anything.
             user_did_not_submit = {check_name: '' for check_name in globals.grading_parts}
@@ -121,22 +151,35 @@ def grade():
     # if the current grading task is done, collect and display the results
     if globals.task.done():
         globals.task = None
-        logger.info(f"Rendering graded results html page for user. Fatal error is {globals.fatal_error}")
+        logger.debug(f"Rendering graded results html page for user. Fatal error is {globals.fatal_error}")
         return redirect(url_for('main.results'))
 
     # if the current grading task is still running, show the grading page with the last submit time
     if globals.task.running():
-        logger.info("Grading task is still running")
+        logger.debug("Grading task is still running")
         return render_template('grading.html', submit_time=globals.manual_submit_time)
 
 
 @main.route('/results',methods=['GET'])
-def results():
+def results() -> str:
+    """
+    Render the results page.
+
+    Returns:
+        str: Rendered results page HTML.
+    """
+
     return render_template('results.html')
 
 
 @main.route('/update',methods=['GET'])
-def updated_results():
+def updated_results() -> Response:
+    """
+    Fetch updated grading results and tokens as JSON.
+
+    Returns:
+        Response: JSON response containing grading results.
+    """
 
     new_cron_results = copy.deepcopy(globals.cron_results) if globals.cron_results != None else dict()
     new_manual_results = copy.deepcopy(globals.manual_results) if globals.manual_results != None else dict()
@@ -168,7 +211,7 @@ def updated_results():
                     break_loop = True
             except Exception as e:
                 break_loop = True
-                logger.info(f"Exception while querying grading results (may be due to attempting to see results before grading). Exception: {str(e)}")
+                logger.error(f"Exception while querying grading results (may be due to attempting to see results before grading). Exception: {str(e)}")
             if break_loop:
                 break
         if "01/01/1900" in globals.manual_submit_time:
@@ -203,10 +246,20 @@ def updated_results():
 
 @main.route("/files", defaults={'folder':''})
 @main.route("/files/<path:folder>")
-def list_files(folder):
+def list_files(folder) -> Response:
+    """
+    List hosted files and directories.
+
+    Args:
+        folder (str): Path to the subfolder under the hosted directory.
+
+    Returns:
+        Response: Rendered HTML showing files/folders.
+    """
+
     if globals.hosted_files_enabled:
         if not globals.server_ready:
-            logger.info("Tried to view files before server was marked as ready.")
+            logger.debug("Tried to view files before server was marked as ready.")
             return redirect(url_for("main.home"))
         files = {}
         dirs = {}
@@ -223,15 +276,24 @@ def list_files(folder):
 
 
 @main.route("/download/<path:path>")
-def get_file(path):
-    """Download a file."""
+def get_file(path) -> Response:
+    """
+    Download a file from the hosted file directory.
+
+    Args:
+        path (str): Path to the file under the hosted directory.
+
+    Returns:
+        Response: File download response or redirect on error.
+    """
+
     if globals.hosted_files_enabled:
         if path == '':
             flash("File not selected for download")
             return redirect(url_for('main.list_files'))
         filePath = os.path.join(globals.hosted_file_directory, path)
         if not globals.server_ready:
-            logger.info("Tried to download files before server was marked as ready.")
+            logger.debug("Tried to download files before server was marked as ready.")
             return redirect(url_for("main.home"))
         if os.path.isfile(filePath) :
             logger.info(f"User is downloading file {filePath}")

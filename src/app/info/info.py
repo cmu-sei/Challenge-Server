@@ -9,24 +9,44 @@
 #
 
 
-from flask import Blueprint, render_template, redirect, url_for, g
+from flask import Blueprint, render_template, redirect, url_for, g, Response
 from app.extensions import globals
 
 info = Blueprint("info",__name__, template_folder=f'templates', static_folder=f'static')     # add path to templates/static if error
 
+
 @info.before_request
-def pass_globals():
+def pass_globals() -> None:
+    """
+    Attach global variables to the `g` object before each request.
+    """
+
     g.globs = globals
 
+
 @info.route('/', methods=['GET'])
-def home():
+def home() -> Response:
+    """
+    Route for the home page. Redirects to the main home page if the info home is disabled.
+
+    Returns:
+        Response: A rendered template or a redirect response.
+    """
+
     if not globals.info_home_enabled:
         return redirect(url_for("main.home"))
     return render_template('starting.html')
 
 
 @info.route('/services', methods=['GET'])
-def services():
+def services() -> Response:
+    """
+    Route for the services page. Redirects if disabled or renders the services template.
+
+    Returns:
+        Response: A rendered template or a redirect response.
+    """
+
     if not globals.services_home_enabled:
         return redirect(url_for("main.home"))
     elif globals.services_list == None:

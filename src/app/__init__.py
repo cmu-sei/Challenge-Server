@@ -10,16 +10,25 @@
 
 
 import threading, subprocess, signal, os, json, datetime, sys
-from flask import Flask, url_for, redirect, flash, request
-
-#local imports
-from config import Config
-from app.functions import run_cron_thread, record_solves
+from flask import Flask, url_for, redirect, flash, request, Response
+from typing import Tuple
+from flaskConfig import FlaskConfig
+from app.cron import run_cron_thread
 from app.extensions import globals, logger, db
 from app.models import EventTracker
 
 
-def create_app(config_class=Config):
+def create_app(config_class: FlaskConfig = FlaskConfig) -> Flask:
+    """
+    Create the Flask application
+
+    Args:
+        config_class (Config, optional): Defaults to Config.
+
+    Returns:
+        Flask: The Flask application
+    """
+
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
     app.url_map.strict_slashes = False
@@ -34,24 +43,48 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
 
-        def signal_handler(sig,frame):
+        def signal_handler(sig,frame) -> None:
+            """
+            Signal handler for shutting down the application
+            """
+
             logger.info(f"Signal Received -- Shutting down site")
             os._exit(0)
         signal.signal(signal.SIGTSTP, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
 
         @app.errorhandler(404)
-        def page_not_found(e):
+        def page_not_found(e) -> Response:
+            """
+            Handle 404 Not Found errors by redirecting to the home page.
+
+            Args:
+                e (HTTPException): The exception raised by the 404 error.
+
+            Returns:
+                Response: A redirect response to the home page.
+            """
             return redirect(url_for('main.home'))
 
         @app.before_request
-        def check_server_status():
+        def check_server_status() -> None:
+            """
+            Notify the user if the server is not ready by flashing a startup message.
+            Called before every request.
+            """
+
             if not globals.server_ready:
-                logger.info(f"Tried to access site before server was marked as ready.")
+                logger.debug(f"Tried to access site before server was marked as ready.")
                 flash("Please Note:<br>The challenge is still starting up and some features may not be available. If an issue occurs, please wait a little bit and refresh. The challenge is ready if this message is not present upon refresh.")
 
         @app.before_request
-        def store_req():
+        def store_req() -> None:
+            """
+            Log user requests and submissions for analytics/auditing.
+            Excludes JS, CSS, and update endpoint requests.
+            Stores data in the EventTracker model and tracks submission counts.
+            """
+
             if (not str(request.path).endswith('.js')) and (not str(request.path).endswith('.css')) and (not str(request.path).endswith('update')):
                 with app.app_context():
                     event = (
@@ -90,7 +123,15 @@ def create_app(config_class=Config):
                     db.session.commit()
     return app
 
-def run_startup_scripts():
+
+def run_startup_scripts() -> Tuple[dict[str,str], dict[str,str]]:
+    """
+    Runs the startup scripts
+
+    Returns:
+        Tuple[dict[str,str], dict[str,str]]: dictionaries that contain stdout / stderr for successful/failed startup scripts.
+    """
+
     successes = {}
     errors = {}
     if not globals.startup_scripts:
@@ -102,7 +143,7 @@ def run_startup_scripts():
         return successes, errors
 
     for startup_script in globals.startup_scripts:
-        logger.info(f"Calling {startup_script}")
+        logger.debug(f"Calling {startup_script}")
 
         # run the startup script and parse output into a dict
         ## The output variable has properties output.stdout  and  output.stderr
@@ -117,7 +158,13 @@ def run_startup_scripts():
     return successes, errors
 
 
-def start_grading_server(app):
+def start_grading_server(app: Flask):
+    """Start the challenge server .
+
+    Args:
+        app (Flask): The Flask app
+    """
+
     # exit if server is not enabled
     if not globals.grading_enabled and not globals.hosted_files_enabled:
         logger.info("Website features not enabled. Will serve disabled page from /.")
