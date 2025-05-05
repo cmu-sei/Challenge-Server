@@ -10,6 +10,12 @@ At startup, the Challenge Server will read the config file and apply settings. T
 
 Edit the [config.yml](./src/config.yml) file to configure the service to behave how you'd like. Check the [supplemental README.md](./src/README.md) for details on configuration options.
 
+## Command Line Options
+
+`--log-level [level]` - Use this option to specify the level at which you want to log. These levels are from the standard [Python logging levels](https://docs.python.org/3/library/logging.html#logging-levels). The default level is `INFO`. Example: `--debug ERROR` will show logs at the error level.
+
+`--debug` - Enable debug logging. This option overrides the log level specified via `--log-level` to enable `DEBUG` level logs.
+
 ### Using HTTPS
 
 To run the Challenge Server with HTTPS, provide the path to a TLS certificate and private key via the [config.yml](./src/config.yml) or the `CS_APP_CERT` and `CS_APP_KEY` environment variables.
