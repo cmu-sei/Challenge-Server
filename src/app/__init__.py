@@ -134,16 +134,24 @@ def run_startup_scripts() -> Tuple[dict[str,str], dict[str,str]]:
 
     successes = {}
     errors = {}
-    if not globals.startup_scripts:
-        logger.info("There are no startup scripts to run")
+    if not globals.startup_enabled:
+        logger.info("Startup Scripts are disabled.")
         return successes, errors
 
-    if not globals.startup_workspace and globals.in_workspace:
+    if (not globals.startup_workspace) and globals.in_workspace:
         logger.info("Startup scripts are disabled when running in a workspace. Skipping startup scripts")
+        return successes, errors
+
+    if (globals.startup_scripts == []) or (globals.startup_scripts == [None]) or (globals.startup_scripts == None):
+        logger.error("Startup scripts enabled but no startup script is configured in 'config.yml'.")
         return successes, errors
 
     for startup_script in globals.startup_scripts:
         logger.debug(f"Calling {startup_script}")
+        if not os.path.isfile(f"{globals.custom_script_dir}/{startup_script}"):
+            logger.error(f"Starting script {startup_script} not found in 'custom_scripts' directory.")
+            errors[startup_script] = f"stdout: \tstderr: Starting script {startup_script} not found in 'custom_scripts' directory."
+            continue
 
         # run the startup script and parse output into a dict
         ## The output variable has properties output.stdout  and  output.stderr

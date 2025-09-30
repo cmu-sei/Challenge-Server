@@ -1,20 +1,16 @@
-/*
- * Challenge Server CSS (merged and fixed)
- */
-
- body {
+body {
     background: white;
     font-family: "Franklin Gothic", sans-serif;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-size: 18px;
+    font-size: 2rem;
 }
 
 legend {
     padding: 5px 10px;
     border: 1px solid black;
-    font-size: 20px;
+    font-size: 2.5rem;
     font-weight: bold;
 }
 
@@ -72,16 +68,18 @@ li.navfloat {
 
 a.navbar_elements:hover {
     cursor: pointer;
-    background-color: rgb(122, 165, 193);
-    color: black;
+    background-color: #7AA5C1;  
+    color: #000000;  
 }
 
+/* Fix footer positioning to prevent overlap */
 footer {
-    bottom: 0;
-    left: 48%;
+    position: relative;  
     text-align: center;
-    position: absolute;
-    font-size: 12px;
+    margin-top: 40px;
+    padding: 20px;
+    width: 100%;
+    left: 0;  
 }
 
 /* Welcome + Table Area */
@@ -98,10 +96,11 @@ fieldset {
 .welcome-message {
     margin: 10px auto 5px auto;
     text-align: center;
+    color: #002844;
 }
 
 .welcome-message h1 {
-    font-size: 32px;
+    font-size: 3rem;
     font-weight: bold;
     text-decoration: underline;
     margin: 0;
@@ -112,7 +111,7 @@ fieldset {
 }
 
 .page_name h2 {
-    font-size: 26px;
+    font-size: 2rem;
     font-weight: bold;
     margin: 30px 0;
     padding: 0;
@@ -133,7 +132,7 @@ fieldset {
     border-collapse: collapse;
     background-color: #005288;
     color: white;
-    font-size: 18px;
+    font-size: 2.5rem;
     table-layout: fixed;
 }
 
@@ -146,8 +145,8 @@ fieldset {
 }
 
 .res-table thead {
-    background-color: #003f66;
-    font-size: 20px;
+    background-color: #002844;
+    font-size: 2.5rem;
     font-weight: bold;
 }
 
@@ -162,14 +161,14 @@ fieldset {
 
 .form-control {
     text-align: left;
-    margin-left: 30px;
-    font-size: 18px;
-    font-family: system-ui, sans-serif;
+    margin-left: 50px;
+    font-size: 1.05em;
+    font-family: inherit;        /*system-ui, sans-serif;*/
     /*font-weight: bold;*/
     line-height: 1.1;
     display: grid;
-    grid-template-columns: 1em auto;
-    gap: 0.5em;
+    grid-template-columns: 1.5em auto;
+    gap: 2em;
 }
 
 .form-control + .form-control {
@@ -181,7 +180,7 @@ fieldset {
 }
 
 input[type='submit'] {
-    font-size: 1.2rem;
+    font-size: 2.4rem;
 }
 
 input[type='radio'] {
@@ -192,8 +191,11 @@ input[type='radio'] {
 
     font: inherit;
     color: currentColor;
-    width: 1.15Em;
-    height: 1.15em;
+
+    height: 1.3em;
+    width: 1.3em;
+    min-height: 44px;
+    min-width: 44px;
     border: 0.15em solid currentcolor;
     border-radius: 50%;
     transform: translateY(-0.075em);
@@ -228,7 +230,6 @@ input[type='radio']:focus {
     font-weight: bold;
 }
 
-
 a.book:link {
     color: white;
     background-color: transparent;
@@ -257,8 +258,8 @@ fieldset.task {
     width: 290px;
     position: fixed;
     left: 0;
-    top: 16%; /* Start at 15% from the top */
-    height: 70%; /* Cover only 70% of the page height */
+    top: 21.7%; /* Start at 15% fr  height: 70%; /* Cover only 70% of the page height */
+    height: 70%;
     background-color: #003f66;
     color: white;
     padding: 10px;
@@ -289,14 +290,70 @@ fieldset.task {
 }
 
 select {
-    width:60%;
-    font-size: 1.15rem;
+    width:70%;
+    font-size:2.3rem;
 }
 
 #upForm {
     padding: 5px 0;
 }
 
+.home_table_page {
+    width:30%;
+}
+
+.home_table_func {
+    width:70%;
+}
+
+.bookmark_fieldset {
+    width:50%;
+}
+
+/* Add visible focus indicators for all interactive elements */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 3px solid #0078FF;
+    outline-offset: 2px;
+}
+
+/* Specific focus style for navbar links */
+.navbar_elements:focus {
+    outline: 3px solid #FFFFFF;
+    outline-offset: -3px;
+}
+
+/* Add focus styles for form controls */
+.form-control:focus-within {
+    outline: 3px solid #0078FF;
+    outline-offset: 2px;
+}
+
+/* Respect user preferences for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    input[type='radio']::before {
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .navbar {
+        border: 2px solid;
+    }
+    
+    fieldset {
+        border: 2px solid;
+    }
+    
+    .res-table th,
+    .res-table td {
+        border: 2px solid;
+    }
+}
 
 /* Settings CSS */
 

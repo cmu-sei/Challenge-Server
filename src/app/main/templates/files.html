@@ -16,26 +16,32 @@ DM24-0645
 
 {% block content %}
 
+<div class="page_name">
+    <h2>Hosted Files</h2>
+</div>
 
 {% if files %}
-{% if files != {} %}
-<h3 style="padding-top: 15px;text-decoration: underline;">Files</h3>
-<div class='left'>
-    {% for filename, path in files.items() %}
-    <a href="{{ url_for('main.get_file', path=path) }}">{{filename}}</a><br>
-    {% endfor %}
-</div>
+    {% if files != {} %}
+    <div class='left'>
+        <h3 style="padding-top: 15px;text-decoration: underline;">Files</h3>
+        {% for filename, path in files.items() %}
+            <a href="{{ url_for('main.get_file', path=path) }}">{{filename}}</a><br>
+        {% endfor %}
+    </div>
+    {% endif %}
 {% endif %}
-{% if folders != {} %}
-<div class="left">
-    <h3 style="text-decoration: underline;">Folders</h3>
-    {% for filename, path in folders.items() %}
-    <a href="{{ url_for('main.list_files', folder=path) }}">{{filename}}</a><br>
-    {% endfor %}
-</div>
+{% if folders %}
+    {% if folders != {} %}
+    <div class="left">
+        <h3 style="text-decoration: underline;">Folders</h3>
+        {% for filename, path in folders.items() %}
+            <a href="{{ url_for('main.list_files', folder=path) }}">{{filename}}</a><br>
+        {% endfor %}
+    </div>
+    {% endif %}
 {% endif %}
-{% else %}
-<h3 style="padding-top:15px;">There are no files to download for this challenge.</h3>
+{% if (not files) and (not folders) %}
+    <h3 style="padding-top:15px;">There are no files to download for this challenge.</h3>
 {% endif %}
 
 {% endblock %}

@@ -9,7 +9,7 @@
 #
 
 
-import threading, os, sys, argparse, logging
+import threading, os, sys, argparse, logging, signal
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -118,6 +118,7 @@ if __name__ == '__main__':
     successes, errors = run_startup_scripts()
     if errors:
         logger.error(f"Startup scripts exited with error(s): {list(errors.keys())}")
+        os.kill(os.getpid(), signal.SIGINT)
         sys.exit(1)
     if successes:
         logger.info(f"All startup scripts exited normally: {list(successes.keys())}")
