@@ -301,8 +301,8 @@ class Globals:
         if (self.grading_enabled) and (conf.get('grading').get('cron_grading', False)):
             self.cron_grading_script = self.resolve('CS_CRON_GRADING',conf.get('grading').get('cron_grading_script'))
             self.grading_mode.append('cron')
-        self.startup_workspace = conf.get('startup', None).get('runInWorkspace',False)
-        self.startup_scripts = conf.get('startup', None).get('scripts',[])
+        self.startup_workspace = conf.get('startup', {}).get('runInWorkspace',False)
+        self.startup_scripts = conf.get('startup', {}).get('scripts',[])
         self.manual_grading_script = self.resolve('CS_MANUAL_GRADING_SCRIPT', conf.get('grading').get('manual_grading_script'))
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
         self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', conf.get('info_and_services'), False)
