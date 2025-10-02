@@ -19,8 +19,7 @@ port_checker: false
 
 challenge_name: ""
 
-startup:
-  enabled: false
+#startup:
 #  # Set this to false if you don't want your startup scripts to run in a workspace (only in a gamespace)
 #  runInWorkspace: true
 #  scripts:
@@ -52,7 +51,6 @@ hosted_files:
 info_and_services:
   info_home_enabled: false
   services_home_enabled: false
-  bookmarks_enabled: false
   #bookmarks:
   #  example: "http://www.example.com"
 

@@ -57,7 +57,6 @@ class Globals:
         self.challenge_code: str = self._init_challenge_code()
         self.in_workspace: bool = "workspace" in self.challenge_code
 
-        self.startup_enabled: bool = False
         self.startup_workspace: bool = False
         self.startup_scripts: List[str] = []
         self.required_services: List[dict] = []
@@ -80,6 +79,7 @@ class Globals:
         self.challenge_completion_time: str = ""
         self.grader_url: Optional[str] = ""
         self.grader_key: Optional[str] = ""
+        self.bookmarks: Optional[dict] = {}
 
         # Cron
         self.cron_limit: Optional[int] = None
@@ -300,19 +300,17 @@ class Globals:
             self.grading_mode.append('manual')
         if (self.grading_enabled) and (conf.get('grading').get('cron_grading', False)):
             self.cron_grading_script = self.resolve('CS_CRON_GRADING',conf.get('grading').get('cron_grading_script'))
-            self.grading('cron')
-        self.startup_enabled = conf.get('startup', {}).get('enabled',False)
-        self.startup_workspace = conf.get('startup', {}).get('runInWorkspace',False)
-        self.challenge_name = self.resolve(conf.get('challenge_name'), "")
-        self.startup_scripts = conf.get('startup', {}).get('scripts',[])
+            self.grading_mode.append('cron')
+        self.startup_workspace = conf.get('startup', None).get('runInWorkspace',False)
+        self.startup_scripts = conf.get('startup', None).get('scripts',[])
         self.manual_grading_script = self.resolve('CS_MANUAL_GRADING_SCRIPT', conf.get('grading').get('manual_grading_script'))
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
         self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', conf.get('info_and_services'), False)
         self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', conf.get('info_and_services'), False)
         self.cmi5_enabled = self.resolve_bool('CS_CMI5_ENABLED', conf.get('cmi5'), False)
         self.grading_parts = conf['grading']['parts']
-        if self.resolve_bool('CS_BOOKMARK_ENABLED',conf.get('info_and_services').get('bookmarks_enabled'),False):
-            self.bookmarks = conf.get('info_and_services').get('bookmarks')
+        # self.bookmarks = self.resolve_dict("CS_BOOKMARKS",conf.get('info_and_services', {}).get('bookmarks', None) 
+        self.bookmarks = conf.get('info_and_services').get('bookmarks', None)
         # Check execution permission on configured grading scripts
         if 'manual' in self.grading_mode:
             try:
