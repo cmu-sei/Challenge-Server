@@ -52,3 +52,14 @@ def services() -> Response:
     elif globals.services_list == None:
         return render_template('services.html',services=None)
     return render_template('services.html',services=len(globals.services_list),status=globals.services_status, num_status = len(globals.services_status))
+
+
+@info.route('/bookmarks', methods=['GET'])
+def bookmarks() -> Response:
+    """
+    Route for the bookmarks page. Redirects if disabled or renders the services template.
+
+    Returns:
+        Response: A rendered template or a redirect response.
+    """
+    return render_template('bookmarks.html')

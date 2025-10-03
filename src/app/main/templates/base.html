@@ -15,7 +15,11 @@ DM24-0645
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8;application/javascript">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{{url_for('main.static',filename='css/base.css')}}">
+    {% if g.globs.accessible_enabled %}
+        <link rel="stylesheet" type="text/css" href="{{url_for('main.static',filename='css/accessible.css')}}">
+    {% else %}
+        <link rel="stylesheet" type="text/css" href="{{url_for('main.static',filename='css/base.css')}}">
+    {% endif %}
     <script type="text/javascript" src="{{ url_for('main.static', filename='js/jquery.min.js') }}"></script>
     {% block header %}{% endblock %}
 </head>
@@ -30,22 +34,22 @@ DM24-0645
                 <ul class="navbarul">
                     <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.home')}}">Home</a></li>
                     {% if g.globs.info_home_enabled %}
-                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.home')}}">Starting Off</a>
-                    </li>
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.home')}}">Starting Off</a></li>
                     {% endif %}
                     {% if g.globs.grading_enabled %}
-                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.tasks')}}">Tasks</a></li>
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.tasks')}}">Tasks</a></li>
                     {% endif %}
                     {% if g.globs.hosted_files_enabled %}
-                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.list_files')}}">Hosted
-                            Files</a></li>
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.list_files')}}">Hosted Files</a></li>
                     {% endif %}
                     {% if g.globs.grading_enabled %}
-                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.results')}}">Results</a></li>
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('main.results')}}">Results</a></li>
                     {% endif %}
                     {% if g.globs.services_home_enabled == True %}
-                    <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.services')}}">Services</a>
-                    </li>
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.services')}}">Services</a></li>
+                    {% endif %}
+                    {% if g.globs.bookmarks != None %}
+                        <li class="navfloat"><a class="navbar_elements" href="{{url_for('info.bookmarks')}}">Bookmarks</a></li>
                     {% endif %}
                 </ul>
             </div>

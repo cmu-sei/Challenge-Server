@@ -9,7 +9,7 @@
 #
 
 
-import threading, os, sys, argparse, logging
+import threading, os, sys, argparse, logging, signal, time
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -71,6 +71,10 @@ def configure_logging(level: str):
 # Create flask app obj
 app = create_app()
 if __name__ == '__main__':
+    if os.geteuid() != 0:
+        logger.error("Must be run by root.")
+        sys.exit(1)
+        
     """
     Start the threads and handle running the server
     """
@@ -87,10 +91,6 @@ if __name__ == '__main__':
         log_level = "DEBUG"
 
     configure_logging(log_level)
-
-    if os.geteuid() != 0:
-        logger.error("Must be run by root.")
-        sys.exit(1)
 
     CORS(app)
     globals.executor = Executor(app)
@@ -118,6 +118,8 @@ if __name__ == '__main__':
     successes, errors = run_startup_scripts()
     if errors:
         logger.error(f"Startup scripts exited with error(s): {list(errors.keys())}")
+        os.kill(os.getpid(), signal.SIGINT)
+        time.sleep(0.5)
         sys.exit(1)
     if successes:
         logger.info(f"All startup scripts exited normally: {list(successes.keys())}")

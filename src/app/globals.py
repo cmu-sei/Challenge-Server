@@ -35,6 +35,7 @@ class Globals:
         self.hosted_file_directory: str = f"{self.basedir}/hosted_files"
         self.uploaded_file_directory: str = f"{self.basedir}/uploaded_files"
         self.yaml_path: str = f"{self.basedir}/config.yml"
+        self.challenge_files: str = f"{self.basedir}/challenge_files"
 
         # Initialize overridable vars
         self.app_host: str = "0.0.0.0"
@@ -78,6 +79,7 @@ class Globals:
         self.challenge_completion_time: str = ""
         self.grader_url: Optional[str] = ""
         self.grader_key: Optional[str] = ""
+        self.bookmarks: Optional[dict] = {}
 
         # Cron
         self.cron_limit: Optional[int] = None
@@ -293,6 +295,13 @@ class Globals:
         self.challenge_name = self.resolve('CS_CHALLENGE_NAME', conf.get('challenge_name'), "Challenge Server")
         self.port_checker = self.resolve_bool('CS_PORT_CHECKER', conf.get('port_checker'), False)
         self.grading_enabled = self.resolve_bool('CS_GRADING_ENABLED', conf.get('grading').get('enabled'), False)
+        if (self.grading_enabled) and (conf.get('grading').get('manual_grading', False)):
+            self.manual_grading_script = self.resolve('CS_MANUAL_GRADING',conf.get('grading').get('manual_grading_script'))
+            self.grading_mode.append('manual')
+        if (self.grading_enabled) and (conf.get('grading').get('cron_grading', False)):
+            self.cron_grading_script = self.resolve('CS_CRON_GRADING',conf.get('grading').get('cron_grading_script'))
+            self.grading_mode.append('cron')
+        self.startup_workspace = conf.get('startup', {}).get('runInWorkspace',False)
         self.startup_scripts = conf.get('startup', {}).get('scripts',[])
         self.manual_grading_script = self.resolve('CS_MANUAL_GRADING_SCRIPT', conf.get('grading').get('manual_grading_script'))
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
@@ -300,9 +309,64 @@ class Globals:
         self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', conf.get('info_and_services'), False)
         self.cmi5_enabled = self.resolve_bool('CS_CMI5_ENABLED', conf.get('cmi5'), False)
         self.grading_parts = conf['grading']['parts']
-        manual_grading = self.resolve_bool('CS_MANUAL_GRADING', conf.get('grading').get('manual_grading'), self.grading_enabled)
-        if manual_grading:
-            self.grading_mode.append('manual')
+        # self.bookmarks = self.resolve_dict("CS_BOOKMARKS",conf.get('info_and_services', {}).get('bookmarks', None) 
+        self.bookmarks = conf.get('info_and_services').get('bookmarks', None)
+        # Check execution permission on configured grading scripts
+        if 'manual' in self.grading_mode:
+            try:
+                if not os.access(os.path.join(self.custom_script_dir,self.manual_grading_script), os.X_OK):
+                    logging.error(f"Manual grading script {self.manual_grading_script} is not executable.")
+                    sys.exit(1)
+            except Exception as e:
+                logging.error(f"Got exception {e} while checking if manual grading script {self.manual_grading_script} is executable.")
+                sys.exit(1)
+        if 'cron' in self.grading_mode:
+            try:
+                if not os.access(os.path.join(self.custom_script_dir,self.cron_grading_script), os.X_OK):
+                    logging.error(f"Cron grading script {self.cron_grading_script} is not executable.")
+                    sys.exit(1)
+            except Exception as e:
+                logging.error(f"Got exception {e} while checking if cron grading script {self.cron_grading_script} is executable.")
+                sys.exit(1)
+        self.required_services = conf.get('required_services', [])
+        if (self.required_services == []) or (self.required_services == None):
+            logging.info("No required services configured.")
+        else:
+            for service in self.required_services:
+                # ensure host is defined in required services
+                if 'host' not in service:
+                    logging.error(f"Missing host definition in required service: {service}")
+                    sys.exit(1)
+                # ensure type is defined in required services. If default to ping type. 
+                if 'type' not in service:
+                    logging.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
+                    service['type'] = "ping"
+                # ensure defined type is valid
+                if service['type'] not in self.VALID_SERVICE_TYPES:
+                    logging.error(f"Invalid required service type in: {service}. Valid types are {self.VALID_SERVICE_TYPES}.")
+                    sys.exit(1)
+                # ensure port is defined for socket type
+                if service['type'] == 'socket' and 'port' not in service:
+                    logging.error(f"Missing port definition in required service: {service}. Port definition is required with socket type")
+                    sys.exit(1)
+                # ensure web options are set/defaulted
+                if service['type'] == 'web':
+                    if 'port' not in service:
+                        logging.info(f"Missing web port definition in required service: {service}. Defaulting to 80")
+                        service['port'] = 80
+                    if 'path' not in service:
+                        logging.info(f"Missing web path definition in required service: {service}. Defaulting to /")
+                        service['path'] = '/'
+                # ensure block startup scripts is defined. Default to False if not
+                if 'block_startup_scripts' not in service:
+                    logging.info(f"Missing block startup script definition in service: {service}. Defaulting to False")
+                    service['block_startup_scripts'] = False
+                if not isinstance(service['block_startup_scripts'], bool):
+                    logging.error(f"Invalid type for block_startup_scripts. Must be true/false")
+                    sys.exit(1)
+                # add to blocking services if needed
+                if service['block_startup_scripts']:
+                    self.blocking_services.append(service)
         logging.debug(f"Final Config: {self}")
 
 
@@ -319,6 +383,6 @@ class Globals:
             except yaml.YAMLError:
                 print("Error Reading YAML in config file")
                 sys.exit(1)
-
         instance.load_config(conf or {})
         return instance
+    
