@@ -45,3 +45,6 @@ dist/**
 src/__pycache__
 src/challenge.db
 pyproject.toml
+
+# Devcontainer certificates
+.devcontainer/certs/*.crt
