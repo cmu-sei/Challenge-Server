@@ -182,12 +182,15 @@ This server can be used to host any files you need to share with the competitor 
 The Challenge Server can send [xAPI](https://xapi.com/)/[CMI5](https://xapi.com/cmi5/) compliant statements to a configured [Learning Record Store (LRS)](https://xapi.com/get-lrs/). Using this feature requires configuring variables that are used to communicate with the LRS (see the [supplemental readme](./src/README.md) for configuration details).
 
 1. When a user submits for grading, the Challenge Server will send a [CMI5 Allowed Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+
    a. Verb: `answered`
+
    b. Question and answer details, including question, question mode (text, multiple choice, etc.), answers, etc.
+
    c. [Interaction type](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#interaction-types) is set according to the configured question mode
 
-   i. `text` mode maps to the `fill-in` xAPI interaction type
+   - `text` mode maps to the `fill-in` xAPI interaction type
 
-   ii. `mc` mode maps to the `choice` xAPI interaction type
+   - `mc` mode maps to the `choice` xAPI interaction type
 
-   iii. All other grading modes map to the `performance` xAPI interaction type
+   - All other grading modes map to the `performance` xAPI interaction type
