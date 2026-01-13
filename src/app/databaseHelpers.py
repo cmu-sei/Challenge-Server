@@ -12,7 +12,7 @@
 import datetime, json, sys
 from typing import Any
 from flask import current_app, Flask
-from app.cmi5 import cmi5_send_answered, cmi5_send_completed
+from app.cmi5 import cmi5_send_answered
 from app.extensions import db, globals, record_solves_lock, logger
 from app.models import EventTracker, PhaseTracking, QuestionTracking
 
@@ -224,7 +224,6 @@ def get_current_phase() -> str:
 def check_questions() -> None:
     """
     Check all questions in the database to determine if the challenge is completed.
-    If the challenge is completed and CMI5 support is enabled, send a CMI5 statement.
     """
 
     with current_app.app_context():
@@ -240,5 +239,3 @@ def check_questions() -> None:
             new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
             db.session.add(new_event)
             db.session.commit()
-            if globals.cmi5_enabled:
-                cmi5_send_completed()

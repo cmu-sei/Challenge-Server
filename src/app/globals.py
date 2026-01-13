@@ -284,10 +284,49 @@ class Globals:
         logging.warning(f"Invalid port '{val or conf_val}', defaulting to {default}")
         return default
 
+    def resolve_json(self, key: str, conf_val, default: dict) -> dict:
+        raw = get_clean_env(key)
+        if raw is None or raw == "":
+            raw = conf_val
+        if raw is None or raw == "":
+            return default
+
+        import json
+        try:
+            if isinstance(raw, dict):
+                return raw
+            if isinstance(raw, str):
+                parsed = json.loads(raw)
+                return parsed if isinstance(parsed, dict) else default
+            logging.warning(f"[config] {key} expected JSON string or dict, got {type(raw).__name__}")
+            return default
+        except Exception as e:
+            logging.error(f"[config] Failed to parse JSON for {key}: {e}")
+            return default
+
+    def warn_incomplete_cmi5_config(self) -> None:
+        if not self.cmi5_enabled:
+            return
+
+        missing = []
+        if not self.cmi5_endpoint:     missing.append("endpoint")
+        if not self.cmi5_registration: missing.append("registration")
+        if not self.cmi5_sessionid:    missing.append("sessionid")
+        if not self.cmi5_activityid:   missing.append("activityid")
+        if not self.cmi5_auth_token:   missing.append("auth-token")
+        if not self.cmi5_actor:        missing.append("actor")
+        if not self.cmi5_context:      missing.append("contextTemplate")
+
+        if missing:
+            logging.warning(
+                f"[cmi5] cmi5 is enabled but configuration is incomplete ({', '.join(missing)}). "
+            )
+
 
     def load_config(self, conf: dict):
         logging.info("Loading application config")
         self.conf = conf
+        cmi5_conf = conf.get('cmi5', {}) or {}
         self.app_host = self.resolve_ip('CS_APP_HOST', conf.get('app', {}).get('host'), '0.0.0.0')
         self.app_port = self.resolve_port('CS_APP_PORT', conf.get('app', {}).get('port'), 8888)
         self.app_cert = self.resolve('CS_APP_CERT', conf.get('app', {}).get('tls_cert'))
@@ -307,9 +346,23 @@ class Globals:
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
         self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', conf.get('info_and_services'), False)
         self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', conf.get('info_and_services'), False)
-        self.cmi5_enabled = self.resolve_bool('CS_CMI5_ENABLED', conf.get('cmi5'), False)
+        self.cmi5_enabled = self.resolve_bool('CS_CMI5_ENABLED', cmi5_conf, False)
+        if self.cmi5_enabled:
+            self.cmi5_endpoint     = self.resolve('CS_CMI5_ENDPOINT',     cmi5_conf.get('endpoint'), '')
+            self.cmi5_registration = self.resolve('CS_CMI5_REGISTRATION', cmi5_conf.get('registration'), '')
+            self.cmi5_sessionid    = self.resolve('CS_CMI5_SESSIONID',    cmi5_conf.get('sessionid'), '')
+            self.cmi5_activityid   = self.resolve('CS_CMI5_ACTIVITYID',   cmi5_conf.get('activityid'), '')
+            self.cmi5_auth_token   = self.resolve('CS_CMI5_AUTH',         cmi5_conf.get('auth-token'), '')
+            if self.cmi5_endpoint.endswith('/'):
+                self.cmi5_endpoint = self.cmi5_endpoint.rstrip('/')
+            self.cmi5_actor   = self.resolve_json('CS_CMI5_ACTOR', cmi5_conf.get('actor'), {})
+            self.cmi5_context = self.resolve_json('CS_CMI5_CONTEXTTEMPLATE', cmi5_conf.get('contextTemplate'), {})
+            if isinstance(self.cmi5_context, dict):
+                self.cmi5_context['registration'] = self.cmi5_registration
+            self.warn_incomplete_cmi5_config()
+
         self.grading_parts = conf['grading']['parts']
-        # self.bookmarks = self.resolve_dict("CS_BOOKMARKS",conf.get('info_and_services', {}).get('bookmarks', None) 
+        # self.bookmarks = self.resolve_dict("CS_BOOKMARKS",conf.get('info_and_services', {}).get('bookmarks', None)
         self.bookmarks = conf.get('info_and_services').get('bookmarks', None)
         # Check execution permission on configured grading scripts
         if 'manual' in self.grading_mode:
@@ -337,7 +390,7 @@ class Globals:
                 if 'host' not in service:
                     logging.error(f"Missing host definition in required service: {service}")
                     sys.exit(1)
-                # ensure type is defined in required services. If default to ping type. 
+                # ensure type is defined in required services. If default to ping type.
                 if 'type' not in service:
                     logging.info(f"Missing type definition in required service: {service}. Defaulting to ping.")
                     service['type'] = "ping"
@@ -385,4 +438,4 @@ class Globals:
                 sys.exit(1)
         instance.load_config(conf or {})
         return instance
-    
+
