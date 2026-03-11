@@ -63,28 +63,24 @@ class ProfileEngine:
 
         for path in profile_paths:
             try:
-                profile = self._load_profile(path)
-                self._index_profile(profile)
+                profile, source_file = self._load_profile(path)
+                self._index_profile(profile, source_file)
             except Exception as e:
                 logger.error(f"[xapi] Failed to load profile {path}: {e}")
                 raise
 
-    def _load_profile(self, path_or_url: str) -> dict:
-        """Load profile from URL or local path with automatic fallback."""
+    def _load_profile(self, path_or_url: str) -> tuple:
+        """Load profile from URL or local path.
+
+        Returns:
+            tuple: (profile_dict, source_file_path)
+        """
         if path_or_url.startswith(('http://', 'https://')):
-            try:
-                logger.info(f"[xapi] Fetching remote profile from {path_or_url}")
-                profile = self._fetch_remote_profile(path_or_url)
-                logger.info(f"[xapi] Successfully fetched remote profile")
-                self._validate_profile(profile)
-                return profile
-            except Exception as e:
-                logger.warning(f"[xapi] Failed to fetch remote profile {path_or_url}: {e}")
-                logger.info(f"[xapi] Falling back to bundled local profile")
-                local_path = self._map_url_to_local(path_or_url)
-                if not local_path:
-                    raise ValueError(f"No local fallback available for {path_or_url}")
-                return self._load_local_profile(local_path)
+            logger.info(f"[xapi] Fetching remote profile from {path_or_url}")
+            profile = self._fetch_remote_profile(path_or_url)
+            logger.info(f"[xapi] Successfully fetched remote profile")
+            self._validate_profile(profile)
+            return profile, path_or_url
         else:
             logger.info(f"[xapi] Loading local profile from {path_or_url}")
             return self._load_local_profile(path_or_url)
@@ -96,8 +92,12 @@ class ProfileEngine:
         response.raise_for_status()
         return response.json()
 
-    def _load_local_profile(self, path: str) -> dict:
-        """Load profile from local filesystem."""
+    def _load_local_profile(self, path: str) -> tuple:
+        """Load profile from local filesystem.
+
+        Returns:
+            tuple: (profile_dict, source_file_path)
+        """
         if not os.path.isabs(path):
             path = os.path.join(self.basedir, path)
 
@@ -105,17 +105,7 @@ class ProfileEngine:
             profile = json.load(f)
 
         self._validate_profile(profile)
-        return profile
-
-    def _map_url_to_local(self, url: str) -> Optional[str]:
-        """Map known profile URLs to bundled local copies."""
-        url = url.rstrip('/')
-        mappings = {
-            'https://w3id.org/xapi/adl': 'profiles/adl.jsonld',
-            'https://w3id.org/xapi/cmi5': 'profiles/cmi5.jsonld',
-            'http://adlnet.gov/expapi': 'profiles/adl.jsonld',
-        }
-        return mappings.get(url, None)
+        return profile, path
 
     def _validate_profile(self, profile: dict) -> None:
         """Validate profile structure."""
@@ -128,8 +118,13 @@ class ProfileEngine:
         if profile.get('type') != 'Profile':
             logger.warning(f"[xapi] Profile type is '{profile.get('type')}', expected 'Profile'")
 
-    def _index_profile(self, profile: dict) -> None:
-        """Index profile concepts for fast lookup."""
+    def _index_profile(self, profile: dict, source_file: str) -> None:
+        """Index profile concepts for fast lookup.
+
+        Args:
+            profile: Profile dictionary
+            source_file: Source file path for error reporting
+        """
         profile_id = profile.get('id', 'unknown')
         logger.info(f"[xapi] Indexing profile: {profile_id}")
 
@@ -137,10 +132,10 @@ class ProfileEngine:
             self.profile_version_iris.append(profile_id)
 
         # Handle both formats:
-        # 1. Standard: verbs/extensions/activityTypes/templates/patterns as separate arrays
-        # 2. Unified: concepts array with type field
+        # 1. Modern xAPI Profile Spec (1.0+): concepts array with type field
+        # 2. Legacy: verbs/extensions/activityTypes/templates/patterns as separate arrays
 
-        # Check for unified concepts array (Navy profile format)
+        # Check for concepts array (standard xAPI Profile Specification format)
         concepts = profile.get('concepts', [])
         if concepts:
             for concept in concepts:
@@ -163,7 +158,9 @@ class ProfileEngine:
                         self._extension_by_preflabel[preflabel.lower()] = concept_id
 
                 elif concept_type == 'StatementTemplate':
-                    self.templates.append(concept)
+                    template = concept.copy()
+                    template['_source_file'] = source_file
+                    self.templates.append(template)
 
                 elif concept_type == 'Pattern' and concept_id:
                     self.patterns[concept_id] = concept
@@ -195,7 +192,9 @@ class ProfileEngine:
 
         # Index templates
         for template in profile.get('templates', []):
-            self.templates.append(template)
+            template_copy = template.copy()
+            template_copy['_source_file'] = source_file
+            self.templates.append(template_copy)
 
         # Index patterns
         for pattern in profile.get('patterns', []):
@@ -235,8 +234,17 @@ class ProfileEngine:
             return display
         return verb_iri.split('/')[-1]
 
-    def find_template(self, verb_iri: str, object_activity_type: str = None) -> Optional[dict]:
-        """Find statement template matching verb and object type."""
+    def find_templates(self, verb_iri: str, object_activity_type: str = None) -> List[dict]:
+        """Find ALL statement templates matching verb and object type.
+
+        Args:
+            verb_iri: Verb IRI to match
+            object_activity_type: Optional activity type to match
+
+        Returns:
+            List of matching templates (may be empty, one, or many)
+        """
+        matches = []
         for template in self.templates:
             verb_rule = template.get('verb')
             if verb_rule and verb_iri != verb_rule:
@@ -245,8 +253,119 @@ class ProfileEngine:
                 obj_type_rule = template.get('objectActivityType')
                 if obj_type_rule and object_activity_type != obj_type_rule:
                     continue
-            return template
+            matches.append(template)
+        return matches
+
+    def disambiguate_template(self, templates: List[dict], provided_data_keys: set,
+                             question_label: str, verb_shorthand: str) -> Optional[dict]:
+        """Disambiguate when multiple templates match a verb.
+
+        Algorithm:
+        1. If no templates: return None
+        2. If single template with no required fields: use it
+        3. If single template with required fields:
+           - Check if user provided all required fields
+           - If yes: use it
+           - If no: ERROR
+        4. If multiple templates:
+           - Find templates without required fields
+           - If exactly one without required: use it
+           - If user provided data: find exact match
+           - Otherwise: ERROR with all options
+
+        Args:
+            templates: List of matching templates
+            provided_data_keys: Set of extension prefLabels user provided in data
+            question_label: Question label for error messages
+            verb_shorthand: Verb shorthand for error messages
+
+        Returns:
+            Selected template or None (if error logged)
+        """
+        if not templates:
+            return None
+
+        if len(templates) == 1:
+            template = templates[0]
+            required = self._get_required_fields(template)
+            if not required:
+                return template
+
+            missing = required - provided_data_keys
+            if not missing:
+                return template
+
+            # Single template but missing required fields
+            source = template.get('_source_file', 'unknown')
+            template_name = self._get_label(template.get('prefLabel', {})) or template.get('id', 'unnamed')
+            logger.error(f'[xapi] "{question_label}": Verb "{verb_shorthand}" requires fields: {", ".join(sorted(required))}')
+            logger.error(f'[xapi] "{question_label}": Missing: {", ".join(sorted(missing))}')
+            logger.error(f'[xapi] "{question_label}": Template "{template_name}" ({source})')
+            logger.error(f'[xapi] "{question_label}": Statement NOT sent')
+            return None
+
+        # Multiple templates - apply disambiguation
+        templates_no_required = [t for t in templates if not self._get_required_fields(t)]
+
+        if len(templates_no_required) == 1:
+            # Safe assumption: user wants the one without requirements
+            return templates_no_required[0]
+
+        # Check for exact match if user provided data
+        if provided_data_keys:
+            exact_matches = []
+            for template in templates:
+                required = self._get_required_fields(template)
+                if required == provided_data_keys:
+                    exact_matches.append(template)
+
+            if len(exact_matches) == 1:
+                return exact_matches[0]
+
+        # Ambiguous - cannot determine which template user wants
+        logger.error(f'[xapi] ERROR: Question "{question_label}" - Verb "{verb_shorthand}" is ambiguous')
+        logger.error(f'[xapi] Found {len(templates)} templates across loaded profiles:')
+
+        for i, template in enumerate(templates, 1):
+            template_name = self._get_label(template.get('prefLabel', {})) or template.get('id', 'unnamed')
+            source = template.get('_source_file', 'unknown')
+            required = self._get_required_fields(template)
+            required_str = ", ".join(sorted(required)) if required else "none"
+            logger.error(f'[xapi] Template {i}: "{template_name}" ({source}). Required data: {required_str}')
+
+        logger.error(f'[xapi] Solution: Provide data matching ONE template above, Use a different verb or Remove any unused profile from config.yml')
+        logger.error(f'[xapi] "{question_label}": Statement NOT sent')
         return None
+
+    def _get_required_fields(self, template: dict) -> set:
+        """Extract required extension field prefLabels from template rules.
+
+        Args:
+            template: Statement template
+
+        Returns:
+            Set of required extension prefLabels (lowercased for matching)
+        """
+        required = set()
+        rules = template.get('rules', [])
+
+        for rule in rules:
+            if rule.get('presence') == 'included':
+                location = rule.get('location', '')
+                # Extract extension IRI from JSONPath location
+                # Format: $.context.extensions['https://...'] or $.result.extensions['...']
+                if 'extensions[' in location:
+                    start = location.find("['") + 2
+                    end = location.find("']", start)
+                    if start > 1 and end > start:
+                        ext_iri = location[start:end]
+                        # Map extension IRI to prefLabel
+                        ext = self.extensions.get(ext_iri, {})
+                        preflabel = self._get_label(ext.get('prefLabel', {}))
+                        if preflabel:
+                            required.add(preflabel.lower())
+
+        return required
 
     def auto_map_data(self, data: dict, template: dict) -> Dict[str, Any]:
         """Auto-map data keys to extension locations via prefLabel."""
@@ -303,13 +422,23 @@ class StatementBuilder:
         # Resolve verb
         verb_iri = self.engine.resolve_verb(verb_shorthand)
         if not verb_iri:
-            logger.error(f"[xapi] Cannot resolve verb: {verb_shorthand}")
-            verb_iri = "http://adlnet.gov/expapi/verbs/answered"
+            logger.error(f'[xapi] "{question_label}": Cannot resolve verb: {verb_shorthand}')
+            logger.error(f'[xapi] "{question_label}": Statement NOT sent')
+            return None
 
         verb_display = self.engine.get_verb_display(verb_iri)
 
-        # Find template
-        template = self.engine.find_template(verb_iri)
+        # Find ALL matching templates
+        templates = self.engine.find_templates(verb_iri)
+
+        # Disambiguate if multiple templates
+        provided_data_keys = set(k.lower() for k in (xapi_data or {}).keys())
+        template = self.engine.disambiguate_template(templates, provided_data_keys,
+                                                     question_label, verb_shorthand)
+
+        # If disambiguation failed, None was returned and error already logged
+        if templates and template is None:
+            return None
 
         # Build object definition
         definition = {
@@ -321,8 +450,9 @@ class StatementBuilder:
         if template and 'objectActivityType' in template:
             definition["type"] = template['objectActivityType']
 
-        # CRITICAL: Only add interactionType if BOTH conditions met
-        if verb_iri == "http://adlnet.gov/expapi/verbs/answered" and question_mode:
+        # Add interactionType for assessment activities
+        # interactionType describes the activity (question format), not the verb
+        if question_mode:
             self._add_interaction_type(definition, question_mode, question_opts)
 
         # Build base statement
@@ -338,8 +468,7 @@ class StatementBuilder:
                 "definition": definition
             },
             "result": {
-                "success": success,
-                "response": user_answer
+                "success": success
             },
             "context": {
                 "contextActivities": {
@@ -348,6 +477,12 @@ class StatementBuilder:
             },
             "timestamp": now.isoformat()
         }
+
+        # Add result.response ONLY for modes that have user input
+        # Per xAPI spec: result.response = "the learner's response" (optional, independent of success)
+        # Only include when there IS an actual response from the user
+        if question_mode in ('text', 'mc') and user_answer:
+            statement["result"]["response"] = user_answer
 
         # Auto-map extension data
         if xapi_data and template:
@@ -361,6 +496,10 @@ class StatementBuilder:
                 "id": profile_iri,
                 "objectType": "Activity"
             })
+
+        # Store template for validation (will be removed before sending)
+        if template:
+            statement['_template'] = template
 
         # Level-specific processing
         if level == 0:
@@ -779,13 +918,29 @@ def send_xapi_statement(question_label: str,
             context_template=globals.xapi_context_template if level == 2 else None
         )
 
-        template = _engine.find_template(
-            _engine.resolve_verb(verb_shorthand) or "http://adlnet.gov/expapi/verbs/answered"
-        )
+        # If build returned None, disambiguation failed and error already logged
+        if statement is None:
+            return False
+
+        # Validate if template was selected (stored in statement by builder)
+        template = statement.pop('_template', None)
         if template:
             warnings = _validator.validate(statement, template)
             if warnings:
-                logger.warning(f"[xapi] Statement validation warnings: {warnings}")
+                # Separate excluded (forbidden) violations from other warnings
+                excluded_errors = [w for w in warnings if "Forbidden field present" in w]
+                other_warnings = [w for w in warnings if "Forbidden field present" not in w]
+
+                # Excluded violations are ERRORS - profile explicitly forbids these fields
+                if excluded_errors:
+                    for error in excluded_errors:
+                        logger.error(f'[xapi] "{question_label}": {error}')
+                    logger.error(f'[xapi] "{question_label}": Statement violates profile rules - NOT sent')
+                    return False
+
+                # Other warnings (missing recommended/required) are just warnings
+                if other_warnings:
+                    logger.warning(f'[xapi] "{question_label}": Statement validation warnings: {other_warnings}')
 
         return _transport.send(statement)
 
