@@ -104,6 +104,21 @@ if __name__ == '__main__':
     # Initialize Database
     initialize_db(app, globals.conf)
 
+    # Initialize xAPI engine
+    if globals.xapi_enabled:
+        from app.xapi import initialize_xapi_engine, get_current_level, xapi_api
+
+        # Register xAPI blueprint
+        app.register_blueprint(xapi_api, url_prefix='/api/xapi')
+        logger.info("[xapi] Registered /api/xapi blueprint")
+
+        # Initialize engine
+        if not initialize_xapi_engine():
+            logger.error("[xapi] Failed to initialize. xAPI statements will not be sent.")
+            globals.xapi_enabled = False
+        else:
+            logger.info(f"[xapi] Initialized at Level {get_current_level()}")
+
     # start the website
     grading_server_thread = threading.Thread(target=start_grading_server, name="GradingServer", args=(app,))
     grading_server_thread.start()

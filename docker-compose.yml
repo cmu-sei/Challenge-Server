@@ -36,14 +36,17 @@ services:
     # - token2="YourToken2"
     # - token3="YourToken3"
     # - token4="YourToken4"
-    # - CS_CMI5_ENABLED='false'
-    # - CS_CMI5_ENDPOINT=''
-    # - CS_CMI5_REGISTRATION=''
-    # - CS_CMI5_SESSIONID=''
-    # - CS_CMI5_ACTIVITYID=''
-    # - CS_CMI5_AUTH=''
-    # - CS_CMI5_ACTOR=''
-    # - CS_CMI5_CONTEXTTEMPLATE=''
+    # - CS_XAPI_ENABLED=''
+    # - CS_XAPI_VERSION=''
+    # - CS_XAPI_TRANSPORT_MODE=''
+    # - CS_XAPI_TRANSPORT_FILE=''
+    # - CS_XAPI_TRANSPORT_FORMAT=''
+    # - CS_XAPI_TRANSPORT_ENDPOINT=''
+    # - CS_XAPI_TRANSPORT_AUTH=''
+    # - CS_XAPI_ACTOR=''
+    # - CS_XAPI_REGISTRATION=''
+    # - CS_XAPI_CONTEXT_TEMPLATE=''
+    # - CS_XAPI_ACTIVITY_ID=''
 
     # # Optional: load all env vars from a file instead of listing individually above
     # env_file:
