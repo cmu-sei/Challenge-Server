@@ -13,8 +13,8 @@ xAPI Profile Implementation
 
 Provides a profile-driven xAPI Learning Record Provider with three operating levels:
 - Level 0: Telemetry Fragment Emitter (no actor/context)
-- Level 1: Standalone xAPI LRP (actor, no cmi5)
-- Level 2: cmi5-Allowed Statement LRP (actor + cmi5 context)
+- Level 1: Standalone xAPI LRP (actor, optional registration for patterns)
+- Level 2: cmi5-Allowed Statement LRP (actor + registration + cmi5 context)
 
 Architecture follows Challenge Server pattern: single file per feature.
 """
@@ -478,6 +478,9 @@ class StatementBuilder:
             "timestamp": now.isoformat()
         }
 
+        # Note: version property SHOULD NOT be included per IEEE 9274.1.1 Section 5.2.4.1
+        # Version belongs only in HTTP header X-Experience-API-Version (handled by transport)
+
         # Add result.response ONLY for modes that have user input
         # Per xAPI spec: result.response = "the learner's response" (optional, independent of success)
         # Only include when there IS an actual response from the user
@@ -508,10 +511,15 @@ class StatementBuilder:
             statement.pop('context', None)
             return statement
         elif level == 1:
+            # Level 1: Standalone xAPI (actor + optional registration)
             if actor:
                 statement["actor"] = actor
+            # Add registration to context if provided
+            if registration:
+                statement["context"]["registration"] = registration
             return statement
         elif level == 2:
+            # Level 2: cmi5-allowed (actor + registration + context_template)
             if actor:
                 statement["actor"] = actor
             if registration or context_template:
@@ -914,7 +922,7 @@ def send_xapi_statement(question_label: str,
             success=success,
             xapi_data=xapi_data,
             actor=globals.xapi_actor if level >= 1 else None,
-            registration=globals.xapi_registration if level == 2 else None,
+            registration=globals.xapi_registration if level >= 1 else None,
             context_template=globals.xapi_context_template if level == 2 else None
         )
 
@@ -950,7 +958,12 @@ def send_xapi_statement(question_label: str,
 
 
 def get_current_level() -> int:
-    """Get current operating level (0/1/2)."""
+    """Get current operating level (0/1/2).
+
+    Level 0: Telemetry fragments (no actor)
+    Level 1: Standalone xAPI (actor, optional registration)
+    Level 2: cmi5-allowed (actor + registration + cmi5 context template)
+    """
     from app.extensions import globals
 
     has_actor = bool(globals.xapi_actor)
@@ -959,7 +972,8 @@ def get_current_level() -> int:
 
     if not has_actor:
         return 0
-    if has_actor and (has_registration or has_context_template):
+    # Level 2 requires BOTH registration AND cmi5 context template (true cmi5)
+    if has_actor and has_registration and has_context_template:
         return 2
     return 1
 
