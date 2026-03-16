@@ -740,7 +740,12 @@ class StatementValidator:
 # ============================================================================
 
 class FileTransport:
-    """File Transport - Writes statements to file for external consumer."""
+    """File Transport - Writes statements to file for external consumer.
+
+    Supports two formats:
+    - jsonl: Newline-delimited JSON (one statement per line, append-only)
+    - json-string: array with stringified payloads
+    """
 
     def __init__(self, file_path: str, format: str = "jsonl"):
         self.file_path = file_path
@@ -752,14 +757,62 @@ class FileTransport:
     def send(self, statement: dict) -> bool:
         """Append statement to file."""
         try:
-            with open(self.file_path, 'a', encoding='utf-8') as f:
-                json.dump(statement, f, ensure_ascii=False)
-                f.write('\n')
-            logger.info(f"[xapi] Statement written to file: {self.file_path}")
-            return True
+            if self.format == "json-string":
+                return self._write_json_string(statement)
+            else:
+                return self._write_jsonl(statement)
         except Exception as e:
             logger.error(f"[xapi] Failed to write statement to file: {e}")
             return False
+
+    def _write_jsonl(self, statement: dict) -> bool:
+        """Write statement as JSONL (newline-delimited JSON)."""
+        with open(self.file_path, 'a', encoding='utf-8') as f:
+            json.dump(statement, f, ensure_ascii=False)
+            f.write('\n')
+        logger.info(f"[xapi] Statement written to file (jsonl): {self.file_path}")
+        return True
+
+    def _write_json_string(self, statement: dict) -> bool:
+        """Write statement as json-string.
+
+        Format: [{"payload": "{...}"}, {"payload": "{...}"}]
+        Requires read-modify-write with file locking.
+        """
+        import fcntl
+
+        with open(self.file_path, 'a+', encoding='utf-8') as f:
+            # Exclusive lock for read-modify-write
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                f.seek(0)
+                contents = f.read().strip()
+
+                # Parse existing array or start fresh
+                if not contents:
+                    payloads = []
+                else:
+                    try:
+                        payloads = json.loads(contents)
+                        if not isinstance(payloads, list):
+                            payloads = []
+                    except json.JSONDecodeError:
+                        payloads = []
+
+                # Append new statement as stringified JSON
+                payloads.append({"payload": json.dumps(statement, ensure_ascii=False)})
+
+                # Write back
+                f.seek(0)
+                f.truncate()
+                f.write(json.dumps(payloads, ensure_ascii=False))
+                f.flush()
+                os.fsync(f.fileno())
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        logger.info(f"[xapi] Statement written to file (json-string): {self.file_path}")
+        return True
 
 
 class HTTPTransport:

@@ -118,8 +118,8 @@ class Globals:
 
         # xAPI Transport
         self.xapi_transport_mode: str = "file"          # "file" or "http"
-        self.xapi_transport_file_path: str = "/tmp/cmi5-proxy/statements.json"
-        self.xapi_transport_format: str = "jsonl"       # "jsonl" or "json-array"
+        self.xapi_transport_file_path: str = "/tmp/statements.json"
+        self.xapi_transport_format: str = "jsonl"       # "jsonl" or "json-string"
         self.xapi_transport_endpoint: str = ""          # For HTTP mode
         self.xapi_transport_auth: str = ""              # For HTTP mode
 
@@ -361,9 +361,9 @@ class Globals:
             transport_conf = xapi_conf.get('transport', {}) or {}
             self.xapi_transport_mode = self.resolve('CS_XAPI_TRANSPORT_MODE',
                                                      transport_conf.get('mode'), 'file')
-            self.xapi_transport_file_path = self.resolve('CS_XAPI_TRANSPORT_FILE',
+            self.xapi_transport_file_path = self.resolve('CS_XAPI_TRANSPORT_FILE_PATH',
                                                           transport_conf.get('file_path'),
-                                                          '/tmp/cmi5-proxy/statements.json')
+                                                          '/tmp/statements.json')
             self.xapi_transport_format = self.resolve('CS_XAPI_TRANSPORT_FORMAT',
                                                        transport_conf.get('format'), 'jsonl')
             self.xapi_transport_endpoint = self.resolve('CS_XAPI_TRANSPORT_ENDPOINT',

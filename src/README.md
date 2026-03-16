@@ -93,13 +93,13 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
 - `grader_post`
   - Set this to `true` if you want the grading results to be automatically posted to Gameboard.
 - `manual_grading`
-  - Set this to `true` if you have *any* questions that are configured with a manual-type mode. (I.e: text, button)
+  - Set this to `true` if you have _any_ questions that are configured with a manual-type mode. (I.e: text, button)
   - Otherwise, set `false`
 - `manual_grading_script`
   - This setting is required if `manual_grading` is set to `true`. (I.e: there are manual type questions.)
   - The script is required to be in the `custom_scripts` directory and requires execution permission.
 - `cron_grading`
-  - Set this to `true` if you have *any* questions that are configured with the mode cron.
+  - Set this to `true` if you have _any_ questions that are configured with the mode cron.
   - Otherwise, set `false`
 - `cron_grading_script`
   - This setting is required if `cron_grading` is set to `true`. (I.e: there are cron type questions.)
@@ -218,7 +218,20 @@ The Challenge Server automatically detects which level to operate at based on da
 **File Transport:**
 
 - `transport.file_path` - Path to output file (e.g., `"/tmp/statements.json"`)
-- `transport.format` - Output format: `"jsonl"` (newline-delimited) or `"json-array"`
+- `transport.format` - Output format: `"jsonl"` (newline-delimited) or `"json-string"`
+
+JSONL example (2 statements):
+
+```txt
+{"id": "4d698f46-691f-43c8-9bd6-a3a97f40cac4", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck1"}, "description": {"en-US": "First question\""}, "interactionType": "fill-in"}}, "result": {"success": false, "response": "test"}, "timestamp": "2026-03-16T12:43:46.953664+00:00"}
+{"id": "691f890a-32d8-8c33-a997-c4567a3ef600", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck2"}, "description": {"en-US": "Second question"}, "interactionType": "fill-in"}}, "result": {"success": true, "response": "correct"}, "timestamp": "2026-03-16T12:45:00.000000+00:00"}
+```
+
+JSON String example (2 statements):
+
+```txt
+[{"payload": "{\"id\": \"4d698f46-691f-43c8-9bd6-a3a97f40cac4\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck1\"}, \"description\": {\"en-US\": \"First question\\\"\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": false,\"response\": \"test\"}, \"timestamp\": \"2026-03-16T12:43:46.953664+00:00\"}"}, {"payload": "{\"id\": \"691f890a-32d8-8c33-a997-c4567a3ef600\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck2\"}, \"description\": {\"en-US\": \"Second question\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": true, \"response\": \"correct\"}, \"timestamp\": \"2026-03-16T12:45:00.000000+00:00\"}"}]
+```
 
 **HTTP Transport:**
 
