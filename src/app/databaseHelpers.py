@@ -12,7 +12,6 @@
 import datetime, json, sys
 from typing import Any
 from flask import current_app, Flask
-from app.cmi5 import cmi5_send_answered
 from app.extensions import db, globals, record_solves_lock, logger
 from app.models import EventTracker, PhaseTracking, QuestionTracking
 
@@ -157,13 +156,17 @@ def update_db(type_q: str, label: str = '', val: str = '') -> Any:
                 if "success" in val.lower():
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                    # CMI5: If newly solved, send question-level 'answered' statement with success set to True
-                    if not was_solved and globals.cmi5_enabled:
-                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, True)
+                    # xAPI: If newly solved, send statement with success set to True
+                    if not was_solved and globals.xapi_enabled:
+                        from app.xapi import send_xapi_statement
+                        question_config = globals.grading_parts.get(label, {})
+                        send_xapi_statement(label, question_config, user_answer, True)
                 else:
-                    # CMI5: If newly failed, send question-level 'answered' statement with success set to False
-                    if not was_solved and globals.cmi5_enabled:
-                            cmi5_send_answered(label, question_text, user_answer, question_mode, question_opts, False)
+                    # xAPI: If newly failed, send statement with success set to False
+                    if not was_solved and globals.xapi_enabled:
+                        from app.xapi import send_xapi_statement
+                        question_config = globals.grading_parts.get(label, {})
+                        send_xapi_statement(label, question_config, user_answer, False)
                 db.session.commit()
             except Exception as e:
                 logger.error(f"Exception updating DB with completed question. Exception: {e}. Exiting.")

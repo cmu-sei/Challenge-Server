@@ -127,51 +127,60 @@ grading:
   #   phase2: ["GradingCheck2"]
 
 # This is a multi-file upload example
-  # uploads:
-  #   files:
-  #     fileset1:
-  #       text: "Submission for parts 1, 2, and 3"
-  #     fileset2:
-  #       text: "Submission for parts 4, 5, and 6"
-  #   max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
-  # parts:
-  #   GradingCheck1:
-  #     token_name: token1
-  #     text: "Question 1: Implement the `part1()` function"
-  #     upload_key: fileset1
-  #     mode: upload
-  #   GradingCheck2:
-  #     token_name: token2
-  #     text: "Question 2: Implement the `part2()` function"
-  #     upload_key: fileset1
-  #     mode: upload
-  #   GradingCheck3:
-  #     token_name: token3
-  #     text: "Question 3: Implement the `part3()` function"
-  #     upload_key: fileset1
-  #     mode: upload
-  #   GradingCheck4:
-  #     token_name: token4
-  #     text: "Question 4: Implement the `part4()` function"
-  #     upload_key: fileset2
-  #     mode: upload
-  #   GradingCheck5:
-  #     token_name: token5
-  #     text: "Question 5: Implement the `part5()` function"
-  #     upload_key: fileset2
-  #     mode: upload
-  #   GradingCheck6:
-  #     token_name: token6
-  #     text: "Question 6: Implement the `part6()` function"
-  #     upload_key: fileset2
-  #     mode: upload
-  
-  # cmi5:
+# uploads:
+#   files:
+#     fileset1:
+#       text: "Submission for parts 1, 2, and 3"
+#     fileset2:
+#       text: "Submission for parts 4, 5, and 6"
+#   max_upload_size: "1M" # "8000" for 8000 bytes, "10K" for 10 kilobytes, "2G" for gigabytes.
+# parts:
+#   GradingCheck1:
+#     token_name: token1
+#     text: "Question 1: Implement the `part1()` function"
+#     upload_key: fileset1
+#     mode: upload
+#   GradingCheck2:
+#     token_name: token2
+#     text: "Question 2: Implement the `part2()` function"
+#     upload_key: fileset1
+#     mode: upload
+#   GradingCheck3:
+#     token_name: token3
+#     text: "Question 3: Implement the `part3()` function"
+#     upload_key: fileset1
+#     mode: upload
+#   GradingCheck4:
+#     token_name: token4
+#     text: "Question 4: Implement the `part4()` function"
+#     upload_key: fileset2
+#     mode: upload
+#   GradingCheck5:
+#     token_name: token5
+#     text: "Question 5: Implement the `part5()` function"
+#     upload_key: fileset2
+#     mode: upload
+#   GradingCheck6:
+#     token_name: token6
+#     text: "Question 6: Implement the `part6()` function"
+#     upload_key: fileset2
+#     mode: upload
+
+# xAPI configuration - See README.md for detailed documentation and examples
+# Operates at 3 levels: Level 0 (fragments), Level 1 (standalone xAPI), Level 2 (cmi5 AU)
+# Level is auto-detected based on actor/registration/context_template presence
+
+# xapi:
 #   enabled: false
-#   endpoint: ""
+#   version: "1.0.3"
+#   profiles: []
+#   transport:
+#     mode: "file"
+#     file_path: "/tmp/statements.json"
+#     format: "jsonl"
+#     endpoint: ""
+#     auth_token: ""
+#   actor: {}
 #   registration: ""
-#   activityid: ""
-#   actor: ''
-#   sessionid: ""
-#   contextTemplate: ''
-#   auth-token: ""
+#   context_template: {}
+#   activity_id: ""

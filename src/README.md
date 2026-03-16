@@ -93,13 +93,13 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
 - `grader_post`
   - Set this to `true` if you want the grading results to be automatically posted to Gameboard.
 - `manual_grading`
-  - Set this to `true` if you have *any* questions that are configured with a manual-type mode. (I.e: text, button)
+  - Set this to `true` if you have _any_ questions that are configured with a manual-type mode. (I.e: text, button)
   - Otherwise, set `false`
 - `manual_grading_script`
   - This setting is required if `manual_grading` is set to `true`. (I.e: there are manual type questions.)
   - The script is required to be in the `custom_scripts` directory and requires execution permission.
 - `cron_grading`
-  - Set this to `true` if you have *any* questions that are configured with the mode cron.
+  - Set this to `true` if you have _any_ questions that are configured with the mode cron.
   - Otherwise, set `false`
 - `cron_grading_script`
   - This setting is required if `cron_grading` is set to `true`. (I.e: there are cron type questions.)
@@ -174,26 +174,256 @@ A phase cannot be viewed until the previous phase has been completed. This is to
 
 Examples can be found in the `config.yml` file.
 
-## CMI5
+## xAPI
 
-CMI5 configuration allows the Challenge Server to send "cmi5 defined" and "cmi5 allowed" statements.
+The Challenge Server acts as a profile-driven xAPI Learning Record Provider (LRP) that automatically operates at one of three levels based on available configuration.
 
-- `enabled`
-  - Set to `true` to enable sending CMI5 statements to an LRS.
-  - `false` disables all CMI5 functionality.
-- `endpoint` - required - URL to the LMS listener location.
-  - Parsed from the Launch URL.
-  - Must be an URL-encoded URL.
-- `registration` - required - Registration ID corresponding to the learner's enrollment for the AU being launched.
-  - Parsed from the Launch URL.
-  - Must be an UUID.
-- `activityid` - required - Activity ID of the AU being launched.
-  - Parsed from the Launch URL.
-  - Must be an IRI.
-- `actor` - required - JSON object of objectType of Agent (as defined in xAPI) that identifies the learner launching the AU so the AU will be able to include it in xAPI requests.
-  - Parsed from the Launch URL.
-  - Must be a JSON object.
-- `contextTemplate` - required - contextTemplate for the AU being launched.
-  - Must be a JSON context object as defined in xAPI.
-- `sessionid` - required - Unique identifier for a single AU launch session based on actor and course registration.
-- `auth-token` - required - Authorization token used in all xAPI communications with the LMS.
+### Operating Levels
+
+The Challenge Server automatically detects which level to operate at based on data presence:
+
+- **Level 0: Telemetry Fragment Emitter**
+  - Outputs minimal statement fragments (verb, object, result, timestamp)
+  - Suitable for air-gapped VMs with no user identity
+  - Fragments written to file for external enrichment
+  - Example use case: Telegraf → Kafka → Enricher → LRS pipeline
+
+- **Level 1: Standalone xAPI LRP**
+  - Sends complete xAPI statements with actor
+  - Suitable for direct LRS integration
+  - Transport via HTTP (direct) or file (admin manages forwarding and deduplication)
+  - Use case: Standard xAPI deployments
+
+- **Level 2: cmi5 Assignable Unit (AU)**
+  - Challenge Server operates as part of a cmi5 AU
+  - Sends cmi5-allowed statements with actor, registration, and contextTemplate
+  - Parameters (actor, registration, contextTemplate) provided via environment variables at boot
+  - Use case: Integration with cmi5-conformant LMS
+
+### Configuration
+
+- `enabled` - Set to `true` to enable xAPI statement generation. Defaults to `false`.
+- `version` - xAPI version string (e.g., `"1.0.3"`). Defaults to `"1.0.3"`.
+- `profiles` - List of xAPI profile JSON-LD files (URLs or local paths)
+  - If empty, uses built-in ADL profile
+  - Profiles define verbs, extensions, activity types, and statement templates
+  - Example: `["./app/profiles/adl.jsonld"]`
+
+### Transport
+
+- `transport.mode` - Transport type: `"file"` or `"http"`
+  - `"file"` - Write statements to local file (Level 0/1)
+  - `"http"` - Send statements directly to LRS via HTTP (Level 1/2)
+
+**File Transport:**
+
+- `transport.file_path` - Path to output file (e.g., `"/tmp/statements.json"`)
+- `transport.format` - Output format: `"jsonl"` (newline-delimited) or `"json-string"`
+
+JSONL example (2 statements):
+
+```txt
+{"id": "4d698f46-691f-43c8-9bd6-a3a97f40cac4", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck1"}, "description": {"en-US": "First question\""}, "interactionType": "fill-in"}}, "result": {"success": false, "response": "test"}, "timestamp": "2026-03-16T12:43:46.953664+00:00"}
+{"id": "691f890a-32d8-8c33-a997-c4567a3ef600", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck2"}, "description": {"en-US": "Second question"}, "interactionType": "fill-in"}}, "result": {"success": true, "response": "correct"}, "timestamp": "2026-03-16T12:45:00.000000+00:00"}
+```
+
+JSON String example (2 statements):
+
+```txt
+[{"payload": "{\"id\": \"4d698f46-691f-43c8-9bd6-a3a97f40cac4\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck1\"}, \"description\": {\"en-US\": \"First question\\\"\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": false,\"response\": \"test\"}, \"timestamp\": \"2026-03-16T12:43:46.953664+00:00\"}"}, {"payload": "{\"id\": \"691f890a-32d8-8c33-a997-c4567a3ef600\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck2\"}, \"description\": {\"en-US\": \"Second question\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": true, \"response\": \"correct\"}, \"timestamp\": \"2026-03-16T12:45:00.000000+00:00\"}"}]
+```
+
+**HTTP Transport:**
+
+- `transport.endpoint` - LRS statements endpoint URL (e.g., `"https://lrs.example.com/xapi/statements"`)
+- `transport.auth_token` - HTTP Authorization header value
+  - Format: `"Basic <base64>"` where base64 is `echo -n "key:secret" | base64`
+  - Required for HTTP transport
+
+### Identity & Context
+
+These fields determine the operating level and support multiple configuration methods:
+
+**Configuration Precedence:**
+
+1. **config.yml** - Static values for development/testing or single-user deployments
+2. **Environment variables** - Per-instance values at boot (recommended for multi-instance deployments)
+3. **REST API** - Runtime values via POST `/api/xapi/context` (required for cmi5 launches)
+
+**Fields:**
+
+- `actor` - xAPI Agent object identifying the learner (required for Level 1/2)
+  - Must have at least one Inverse Functional Identifier (IFI): `mbox`, `mbox_sha1sum`, `openid`, or `account`
+  - `objectType` and `name` are optional (objectType defaults to "Agent" if omitted)
+  - Minimal example: `{"mbox": "mailto:user@example.com"}`
+  - Full example: `{"objectType": "Agent", "mbox": "mailto:user@example.com", "name": "User"}`
+  - Static config.yml is suitable for development/testing or single-user deployments
+  - Environment variables recommended for multi-instance deployments
+  - REST API required for cmi5 launches where parameters come from LMS at runtime
+
+- `registration` - cmi5 session UUID (required for Level 2)
+  - Unique identifier for a single AU launch session
+  - Typically parsed from cmi5 launch URL and sent via **POST** `/api/xapi/context`
+
+- `context_template` - cmi5 contextTemplate object (required for Level 2)
+  - Must be a valid xAPI context object
+  - Contains contextActivities, extensions for cmi5 requirements
+  - Typically parsed from cmi5 launch URL and sent via **POST** `/api/xapi/context`
+
+- `activity_id` - Base activity IRI (optional)
+  - Used as object.id for all statements
+  - Defaults to `"challenge#<question_label>"` if not specified
+  - Can be set via config, environment variables, or **POST** `/api/xapi/context`
+
+### Question Configuration
+
+Each grading part can optionally specify xAPI metadata to customize the verb and add extension data to statements.
+
+#### Basic Example (using default verb)
+
+```yaml
+grading:
+  parts:
+    Task1:
+      token_name: token1
+      text: "Complete the network scan"
+      mode: button
+      # No xapi section - uses default "answered" verb
+```
+
+#### Example with Custom Verb
+
+```yaml
+grading:
+  parts:
+    Task2:
+      token_name: token2
+      text: "Analyze the network traffic"
+      mode: text
+      xapi:
+        verb: "analyzed"  # Must be defined in loaded profile
+```
+
+#### Example with Verb and Extension Data
+
+```yaml
+grading:
+  parts:
+    Task3:
+      token_name: token3
+      text: "Scan the target network"
+      mode: button
+      xapi:
+        verb: "answered"
+        data:
+          tool: "nmap"              # Mapped to extension via prefLabel
+          target: "10.0.0.0/24"     # Mapped to extension via prefLabel
+          difficulty: "medium"
+```
+
+#### Example with Full IRI
+
+```yaml
+grading:
+  parts:
+    Task4:
+      token_name: token4
+      text: "Question 4"
+      mode: mc
+      opts:
+        a: "Option A"
+        b: "Option B"
+      xapi:
+        verb: "http://adlnet.gov/expapi/verbs/answered"  # Full IRI
+```
+
+#### Configuration Fields
+
+- `xapi.verb` - Verb shorthand or full IRI (optional)
+  - Shorthand example: `"answered"`, `"completed"`, `"passed"`
+  - Full IRI example: `"http://adlnet.gov/expapi/verbs/answered"`
+  - Must be defined in loaded profiles
+  - Defaults to `"answered"` if not specified
+
+- `xapi.data` - Key-value pairs for extension data (optional)
+  - Keys are matched to profile extension prefLabels (case-insensitive)
+  - Values are automatically mapped to correct statement locations (result, context, activity)
+  - Unknown keys generate warnings but don't block statement generation
+  - If profile doesn't define matching extensions, data is ignored
+
+### Runtime Context API
+
+The Challenge Server exposes REST endpoints for runtime context management:
+
+#### Set Context
+
+**POST** `/api/xapi/context`
+
+Sets actor, registration, context_template, and activity_id at runtime. Useful for cmi5 launches where parameters are parsed from launch URL.
+
+Request body (all fields optional):
+
+```json
+{
+  "actor": {
+    "mbox": "mailto:user@example.com"
+    // Minimal: only IFI required (mbox, account, openid, or mbox_sha1sum)
+    // Optional: "objectType": "Agent" (defaults to "Agent")
+    // Optional: "name": "User Display Name"
+  },
+  "registration": "550e8400-e29b-41d4-a716-446655440000",
+  "context_template": {
+    "contextActivities": {
+      "category": [{"id": "https://w3id.org/xapi/cmi5/context/categories/cmi5"}]
+    }
+  },
+  "activity_id": "https://example.com/activity"
+}
+```
+
+Or with account IFI:
+
+```json
+{
+  "actor": {
+    "account": {
+      "homePage": "https://lms.example.com",
+      "name": "user123"
+    }
+  },
+  "registration": "550e8400-e29b-41d4-a716-446655440000",
+  "context_template": {...},
+  "activity_id": "https://example.com/activity"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "level": 2,
+  "mode": "cmi5-allowed",
+  "actor_present": true,
+  "cmi5_context_present": true
+}
+```
+
+#### Get Context Status
+
+**GET** `/api/xapi/context`
+
+Returns current operating level and context status.
+
+Response:
+
+```json
+{
+  "level": 1,
+  "mode": "xapi",
+  "actor_present": true,
+  "cmi5_context_present": false,
+  "profile_loaded": true,
+  "xapi_enabled": true
+}
+```
