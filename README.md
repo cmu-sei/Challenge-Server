@@ -177,20 +177,59 @@ This server supports 2 methods for grading results.
 
 This server can be used to host any files you need to share with the competitor inside the challenge environment. To host files, place the files in the [hosted_files](./src/hosted_files/) directory. This will allow competitors to download the files from inside their challenge environment.
 
-## xAPI/CMI5
+## xAPI Learning Analytics
 
-The Challenge Server can send [xAPI](https://xapi.com/)/[CMI5](https://xapi.com/cmi5/) compliant statements to a configured [Learning Record Store (LRS)](https://xapi.com/get-lrs/). Using this feature requires configuring variables that are used to communicate with the LRS (see the [supplemental readme](./src/README.md) for configuration details).
+### What is xAPI?
 
-1. When a user submits for grading, the Challenge Server will send a [CMI5 Allowed Statement](https://github.com/AICC/cmi-5_Spec_Current/blob/quartz/cmi5_spec.md#713-types-of-statements) with these details:
+The [Experience API (xAPI)](https://xapi.com/) is an eLearning software specification that allows learning systems to track and record learning experiences. xAPI captures interactions as "statements" in the format: **Actor** (learner) performed **Verb** (action) on **Object** (activity), with optional **Result** (outcome) and **Context** (additional details).
 
-   a. Verb: `answered`
+### Why use xAPI with Challenge Server?
 
-   b. Question and answer details, including question, question mode (text, multiple choice, etc.), answers, etc.
+xAPI enables learning analytics for cybersecurity challenges:
 
-   c. [Interaction type](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#interaction-types) is set according to the configured question mode
+- Track learner attempts, wrong answers, and time-to-success patterns
+- Measure skill progression across multiple challenges
+- Integrate with Learning Management Systems (LMS) and Learning Record Stores (LRS)
+- Support cmi5-compliant courses for formal training programs
 
-   - `text` mode maps to the `fill-in` xAPI interaction type
+**Official Resources:**
 
-   - `mc` mode maps to the `choice` xAPI interaction type
+- [xAPI Specification (IEEE 9274.1.1)](https://opensource.ieee.org/xapi/xapi-base-standard-documentation)
+- [cmi5 Specification](https://github.com/AICC/CMI-5_Spec_Current/blob/quartz/cmi5_spec.md)
 
-   - All other grading modes map to the `performance` xAPI interaction type
+### Challenge Server xAPI Capabilities
+
+Challenge Server operates as a profile-driven xAPI Learning Record Provider (LRP) with three automatic detection levels:
+
+#### Level 0: Partial xAPI Statements
+
+Outputs JSON using xAPI vocabulary but missing actor and context fields. Used in environments where actor and registration are unavailable (e.g., airgapped VMs). File transport only. Designed for external enrichment pipelines that inject identity at processing time.
+
+#### Level 1: Standalone xAPI LRP
+
+Sends complete xAPI statements with actor. Supports optional registration for pattern tracking. Actor provided via config.yml, environment variables, or REST API. Standard xAPI deployment with direct LRS integration via HTTP or file transport.
+
+#### Level 2: cmi5-Allowed LRP
+
+Acts as an xAPI LRP deployed within a cmi5 Assignable Unit. Actor, registration, and contextTemplate provided via config.yml, environment variables, or REST API (typically from LMS launch parameters). Sends cmi5-allowed statements compliant with Section 9.6.2 of cmi5 spec. **Not a full cmi5 AU** (no launch method parsing, State API, or session lifecycle).
+
+### What Gets Tracked?
+
+When xAPI is enabled, Challenge Server automatically sends statements for:
+
+- **User submissions** - Question text, answer, correctness, and [interaction type](https://github.com/adlnet/xAPI-Spec/blob/master/xAPI-Data.md#interaction-types) based on question mode:
+  - `text` mode → `fill-in` interaction type
+  - `mc` mode → `choice` interaction type
+  - All other modes → `performance` interaction type
+- **Grading results** - Success/failure, score, completion status
+- **Custom events** - Profile-driven verbs and extensions for specialized tracking
+- **Default verb** - Uses `answered` from the built-in ADL profile (customizable via profile configuration)
+
+### Configuration
+
+See the [supplemental README.md](./src/README.md) for detailed xAPI configuration including:
+
+- Transport modes (file vs HTTP)
+- Profile loading (JSON-LD)
+- Actor, registration, and contextTemplate setup
+- Statement template validation
