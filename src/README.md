@@ -204,10 +204,14 @@ The Challenge Server automatically detects which level to operate at based on da
 
 - `enabled` - Set to `true` to enable xAPI statement generation. Defaults to `false`.
 - `version` - xAPI version string (e.g., `"1.0.3"`). Defaults to `"1.0.3"`.
-- `profiles` - List of xAPI profile JSON-LD files (URLs or local paths)
-  - If empty, uses built-in ADL profile
+- `profiles` - List of xAPI profile JSON-LD files to load
+  - If empty, uses built-in ADL profile (provides "answered" verb)
   - Profiles define verbs, extensions, activity types, and statement templates
-  - Example: `["./app/profiles/adl.jsonld"]`
+  - **Simple filename** - looks in `./app/profiles/` directory: `["video.jsonld"]`
+  - **Relative path** - relative to `./src/` directory: `["./app/profiles/custom.jsonld"]`
+  - **Absolute path** - uses exact path: `["/etc/xapi/profile.jsonld"]`
+  - **Remote URL** - fetches from HTTP(S): `["https://w3id.org/xapi/video"]`
+  - **Custom profiles**: Place your profile files in `./src/app/profiles/` and reference by filename
 
 ### Transport
 
