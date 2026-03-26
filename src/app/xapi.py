@@ -59,7 +59,7 @@ class ProfileEngine:
         # Load profiles
         if not profile_paths:
             logger.info("[xapi] No profiles specified, using built-in ADL profile")
-            profile_paths = [os.path.join(self.basedir, "profiles", "adl.jsonld")]
+            profile_paths = [os.path.join(self.basedir, "app", "profiles", "adl.jsonld")]
 
         for path in profile_paths:
             try:
