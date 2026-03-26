@@ -352,9 +352,17 @@ class Globals:
                 profiles = [profiles]
             resolved_paths = []
             for p in profiles:
-                if p and not os.path.isabs(p):
-                    p = os.path.join(self.basedir, p)
-                resolved_paths.append(p)
+                if not p:
+                    continue
+                # URLs and absolute paths are used as-is
+                if os.path.isabs(p) or p.startswith(('http://', 'https://')):
+                    resolved_paths.append(p)
+                # Relative paths with directory separators are joined with basedir
+                elif os.path.sep in p or '/' in p:
+                    resolved_paths.append(os.path.join(self.basedir, p))
+                # Simple filenames (no path separators) look in app/profiles/
+                else:
+                    resolved_paths.append(os.path.join(self.basedir, "app", "profiles", p))
             self.xapi_profile_paths = resolved_paths
 
             # Transport Configuration
