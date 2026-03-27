@@ -767,11 +767,17 @@ class FileTransport:
 
     def _write_jsonl(self, statement: dict) -> bool:
         """Write statement as JSONL (newline-delimited JSON)."""
-        with open(self.file_path, 'a', encoding='utf-8') as f:
-            json.dump(statement, f, ensure_ascii=False)
-            f.write('\n')
-        logger.info(f"[xapi] Statement written to file (jsonl): {self.file_path}")
-        return True
+        # Set umask to 0 so file is created with 0666 (rw-rw-rw-) if it doesn't exist
+        # This allows other users (e.g., telegraf) to read and write
+        old_umask = os.umask(0)
+        try:
+            with open(self.file_path, 'a', encoding='utf-8') as f:
+                json.dump(statement, f, ensure_ascii=False)
+                f.write('\n')
+            logger.info(f"[xapi] Statement written to file (jsonl): {self.file_path}")
+            return True
+        finally:
+            os.umask(old_umask)
 
     def _write_json_string(self, statement: dict) -> bool:
         """Write statement as json-string.
@@ -779,6 +785,20 @@ class FileTransport:
         Format: [{"payload": "{...}"}, {"payload": "{...}"}]
         Requires read-modify-write with file locking.
         """
+        import fcntl
+
+        # Set umask to 0 so file is created with 0666 (rw-rw-rw-) if it doesn't exist
+        # This allows other users (e.g., telegraf) to read and write
+        old_umask = os.umask(0)
+        try:
+            self._write_json_string_inner(statement)
+            logger.info(f"[xapi] Statement written to file (json-string): {self.file_path}")
+            return True
+        finally:
+            os.umask(old_umask)
+
+    def _write_json_string_inner(self, statement: dict) -> None:
+        """Inner method for json-string writing (umask handled by caller)."""
         import fcntl
 
         with open(self.file_path, 'a+', encoding='utf-8') as f:
@@ -810,9 +830,6 @@ class FileTransport:
                 os.fsync(f.fileno())
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-        logger.info(f"[xapi] Statement written to file (json-string): {self.file_path}")
-        return True
 
 
 class HTTPTransport:
