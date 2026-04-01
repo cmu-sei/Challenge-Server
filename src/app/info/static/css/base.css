@@ -9,7 +9,7 @@
 
 /************** Basic layout **************/
 body {
-    background: rgb(218, 169, 114);
+    background: #F5F5F5;
     font-family: 400 14px "Sans-serif","Helvetica";
     padding: 20px;
     font-size: 18px;
@@ -73,7 +73,7 @@ p.center ul.center {
 
 .navbar {
     overflow:hidden;
-    background-color: rgb(218, 152, 78);
+    background-color: #C41230;
     position: relative;
     border: 1px solid black;
     display: flex;
@@ -119,7 +119,7 @@ li.navfloat {
 
 .navbar_elements {
     display: block;
-    color: black;
+    color: white;
     text-align: center;
     padding: 14px 16px;
     text-decoration: none;
@@ -129,7 +129,7 @@ li.navfloat {
 
 a.navbar_elements:hover {
     cursor:pointer;
-    background-color: rgb(179, 124, 62);
+    background-color: #BFC0C2;
     color: black;
 }
 
@@ -153,7 +153,8 @@ footer {
 }
 
 fieldset {
-    background-color: rgb(218, 152, 78);
+    background-color: white;
+    color: #191923;
 }
 td {
     padding:10px;

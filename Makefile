@@ -8,7 +8,7 @@
 #
 
 VENV_DIR := .venv
-PYTHON := python3.13
+PYTHON := python3
 REQUIREMENTS := requirements.txt
 APP_DIR := ./src
 APP := app.py
