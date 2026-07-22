@@ -337,6 +337,11 @@ class Globals:
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
         self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', conf.get('info_and_services'), False)
         self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', conf.get('info_and_services'), False)
+        self.token_location = self.resolve(
+            'CS_TOKEN_LOCATION',
+            conf.get('grading', {}).get('token_location'),
+            self.token_location,
+        )
 
         # Load xAPI configuration
         xapi_conf = conf.get('xapi', {}) or {}
