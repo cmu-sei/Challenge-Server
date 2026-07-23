@@ -114,7 +114,7 @@ def do_grade(args: dict) -> tuple[dict,dict]:
 
     for k, v in results.items():
         user_input = grade_args.get(k, "")
-        update_db('q', k, f"{v}--{user_input}")
+        update_db('q', k, v, user_input)
 
     return get_results(results)
 

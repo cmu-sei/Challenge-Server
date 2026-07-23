@@ -9,7 +9,7 @@
 #
 
 
-import datetime, json, sys
+import datetime, json, re, sys
 from typing import Any
 from flask import current_app, Flask
 from app.extensions import db, globals, record_solves_lock, logger
@@ -119,13 +119,31 @@ def check_db(label: str) -> bool:
         return cur_question.solved
 
 
-def update_db(type_q: str, label: str = '', val: str = '') -> Any:
+def _get_grading_feedback(val: str) -> str:
+    """
+    Extract optional user-facing feedback from a grading script result.
+    """
+
+    result = val.strip()
+    if not result:
+        return ""
+
+    match = re.match(r'^(success|failure|failed)\b(.*)$', result, re.IGNORECASE)
+    if not match:
+        return result
+
+    feedback = match.group(2).strip().lstrip('-:').strip()
+    return feedback if feedback else "N/A"
+
+
+def update_db(type_q: str, label: str = '', val: str = '', user_answer: str = '') -> Any:
     """Update database with question or phase status.
 
     Args:
         type_q (str): 'q' for question or 'p' for phase update
         label (str, optional): Database event label. Defaults to ''.
         val (str, optional): Database event value. Defaults to ''.
+        user_answer (str, optional): User-submitted answer for xAPI. Defaults to ''.
 
     Returns:
         Any
@@ -138,11 +156,7 @@ def update_db(type_q: str, label: str = '', val: str = '') -> Any:
                 if cur_question == None:
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
-                if '--' in val:
-                    user_response, user_answer = val.split('--', 1)
-                    cur_question.response = user_response
-                if (val and '--' not in val) and (cur_question.response == ''):
-                    cur_question.response = "N/A"
+                cur_question.response = _get_grading_feedback(val)
                 was_solved = cur_question.solved
 
                 part_info = globals.grading_parts.get(label, {})
