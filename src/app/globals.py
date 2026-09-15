@@ -25,7 +25,7 @@ class Globals:
         # Static defaults (non-configurable)
         self.VALID_CONFIG_MODES: List[str] = ['button', 'cron', 'text', 'text_single', 'mc', 'upload']
         self.MANUAL_MODE: List[str] = ['button', 'text', 'text_single', 'mc', 'upload']
-        self.VALID_TOKEN_LOCATIONS: List[str] = ['env', 'guestinfo', 'file']
+        self.VALID_TOKEN_LOCATIONS: List[str] = ['env', 'guestinfo', 'file', 'config']
         self.VALID_SUBMISSION_METHODS: List[str] = ['display', 'grader_post']
         self.VALID_SERVICE_TYPES: List[str] = ['ping', 'socket', 'web']
 
@@ -80,6 +80,8 @@ class Globals:
         self.grader_url: Optional[str] = ""
         self.grader_key: Optional[str] = ""
         self.bookmarks: Optional[dict] = {}
+        # Only used when self.token_location == "config"
+        self.token_values: dict[str, str] = {}
 
         # Cron
         self.cron_limit: Optional[int] = None
@@ -342,6 +344,7 @@ class Globals:
             conf.get('grading', {}).get('token_location'),
             self.token_location,
         )
+        self.token_values = conf.get('grading', {}).get('token_values', {})
 
         # Load xAPI configuration
         xapi_conf = conf.get('xapi', {}) or {}

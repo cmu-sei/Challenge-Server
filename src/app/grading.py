@@ -294,3 +294,12 @@ def read_token(part_name: str) -> str:
             if globals.grader_post:
                 globals.fatal_error = True
             return "Unexpected error encountered. Contact an administrator."
+
+    elif globals.token_location == 'config':
+        token = globals.token_values.get(value)
+        if token is None:
+            logger.error(f"Token {value} was not in token_values when trying to read token for check {part_name}: {globals.token_values}")
+            if globals.grader_post:
+                globals.fatal_error = True
+            return "Unexpected error encountered. Contact an administrator."
+        return token
