@@ -132,7 +132,10 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
   - set to `env` if tokens are located in environment variables. **This is the default.**
   - set to `guestinfo` if tokens are located in VMware guestinfo variables.
   - set to `file` if tokens are located in a file on disk.
+  - set to `config` if tokens should be part of this config file. See `token_values`.
   - Setting can be overwritten with an environment variable named `CS_TOKEN_LOCATION`.
+- `token_values`
+  - Token name: value pairs. Names must match the names in the grading checks in `parts`.
 
 ### submission
 
@@ -149,6 +152,7 @@ Examples can be found in the `services_to_log` section of the `config.yml` file.
 - `token_name` - The name of the token variable (environment variable, guestinfo variable, etc.).
   - Best practice is to follow the same naming format as the `part_names`, where the first is named `token1`, the second is `token2`, and so on.
   - **If you are using the `file` token_location, this value should be the full path to the file.**
+  - **If you are using the `config` token_location, make sure this matches a token name in `token_values`.**
 - `text` - Question text to display to the user on the task page.
 - `mode` - Grading mode for this question.
   - `text` - Provide the user with a text box to submit an answer.
