@@ -82,6 +82,14 @@ grading:
   rate_limit: 0
   token_location: env
 
+  # Example for using the "config" token_location:
+  # token_location: config
+  # token_values:
+  #   token1: somevalue1
+  #   token2: somevalue2
+  #   token3: somevalue3
+  #   token4: somevalue4
+
   submission:
     method: display
     grader_url: ""
