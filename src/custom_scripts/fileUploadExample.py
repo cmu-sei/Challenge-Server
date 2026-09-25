@@ -32,7 +32,7 @@ def grade_archive(archive_path: str) -> str:
     """
 
     file_contents = []
-    if os.path.isfile(archive_path):
+    if archive_path and os.path.isfile(archive_path):
         with ZipFile(archive_path) as arc:
             for filename in arc.namelist():
                 with arc.open(filename) as f:

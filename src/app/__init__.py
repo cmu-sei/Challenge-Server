@@ -97,7 +97,7 @@ def create_app(config_class: FlaskConfig = FlaskConfig) -> Flask:
                         form_data = dict(request.form)
                         for k, v in request.form.items():
                             if k != 'submit':
-                                form_data[f"{k}_text"] = globals.grading_parts[k]['text']
+                                form_data[f"{k}_text"] = (globals.grading_parts or {}).get(k, {}).get('text', '')
                     event_data = {
                         "challenge":globals.challenge_name,
                         "support_code":globals.support_code,
@@ -160,6 +160,9 @@ def run_startup_scripts() -> Tuple[dict[str,str], dict[str,str]]:
         except subprocess.CalledProcessError as e:
             logger.error(f"Startup script {startup_script} returned with non-zero exit status {e.returncode}.\tStdout: {e.stdout}\tStderr: {e.stderr}")
             errors[startup_script] = f"stdout: {e.stdout}\tstderr: {e.stderr}"
+        except OSError as e:
+            logger.error(f"Startup script {startup_script} could not be run. Exception: {e}")
+            errors[startup_script] = f"stdout: \tstderr: {e}"
     return successes, errors
 
 
@@ -178,7 +181,7 @@ def start_grading_server(app: Flask):
         # if using the cron mode, we need to set the config variables and start/schedule the grading thread
         if 'cron' in globals.grading_mode:
             logger.info(f"Waiting {globals.cron_delay} seconds until executing cron-style grading")
-            cron_thread = threading.Timer(globals.cron_delay, run_cron_thread)
+            cron_thread = threading.Timer(globals.cron_delay, run_cron_thread, args=(app,))
             cron_thread.start()
 
     # Add first entry to DB to indicate that the server has started

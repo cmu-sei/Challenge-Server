@@ -12,7 +12,7 @@ from concurrent.futures import Future
 import datetime, json, os, subprocess, sys, requests
 from time import sleep
 from typing import Any
-from app.databaseHelpers import check_db, get_current_phase, record_solves, update_db
+from app.databaseHelpers import check_db, get_current_phase, is_pass, record_solves, update_db
 from app.env import get_clean_env
 from app.extensions import db, globals, logger
 from app.fileUploads import get_most_recent_file
@@ -20,7 +20,7 @@ from app.models import EventTracker
 from flask import current_app
 
 
-def do_grade(args: dict) -> tuple[dict,dict]:
+def do_grade(args: dict = None) -> tuple[dict,dict]:
     """
     Grading and token reading for all manual questions
 
@@ -33,17 +33,16 @@ def do_grade(args: dict) -> tuple[dict,dict]:
 
     globals.fatal_error = False
     manual_grading_list = list()
-    for ques,ans in args.items():
+    for ques,ans in (args or {}).items():
         if (ques not in globals.grading_parts.keys()) or (globals.grading_parts[ques]['mode'] not in globals.VALID_CONFIG_MODES):
             logger.debug(f"The key {ques} is not a a grading key/mode. Skipping")
             continue
-        index = int(ques[-1])
         if (globals.grading_parts[ques]['mode'] in globals.MANUAL_MODE) and (globals.grading_parts[ques]['mode'] not in ("button", "upload")):
-            manual_grading_list.insert(index,{ques:ans})
+            manual_grading_list.append({ques:ans})
         elif globals.grading_parts[ques]['mode'] == "upload":
             file_key = globals.grading_parts[ques]['upload_key']
             saved_archive = get_most_recent_file(file_key, path=True)
-            manual_grading_list.insert(index,{ques:saved_archive})
+            manual_grading_list.append({ques:saved_archive})
 
 
     script_path = os.path.join(globals.custom_script_dir, globals.manual_grading_script)
@@ -67,8 +66,7 @@ def do_grade(args: dict) -> tuple[dict,dict]:
         if current_phase != 'completed':
             grade_cmd.append(current_phase)
         else:
-            tmp = [f'{grade_key} : Success' for grade_key in globals.grading_parts.keys()]
-            results = dict(tmp)
+            results = {grade_key: 'Success' for grade_key in globals.grading_parts.keys()}
             return get_results(results)
 
     try:
@@ -114,7 +112,13 @@ def do_grade(args: dict) -> tuple[dict,dict]:
 
     for k, v in results.items():
         user_input = grade_args.get(k, "")
-        update_db('q', k, f"{v}--{user_input}")
+        # xAPI: only send a failure for questions the user answered. Button questions are answered by submitting, upload questions by uploading a file
+        mode = globals.grading_parts.get(k, {}).get('mode')
+        if mode == "upload":
+            send_failure = bool(user_input)
+        else:
+            send_failure = mode == "button" or (mode in globals.MANUAL_MODE and str(user_input).strip() != "")
+        update_db('q', k, v, user_input, send_failure)
 
     return get_results(results)
 
@@ -138,7 +142,7 @@ def get_results(results: dict) -> tuple[dict,dict]:
         if key not in globals.grading_parts.keys():
             logger.debug(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
             del end_results[key]
-        if "success" in value.lower():
+        if is_pass(value):
             tokens[key] = read_token(key)
         elif check_db(key):             ### check DB to see if failed question was passed previously & update results accordingly
             results[key] = "Success"
@@ -168,10 +172,11 @@ def post_submission(tokens: dict) -> Any:
         "Content-Type": "application/json",
         "x-api-key": f"{globals.grader_key}"
     }
-    payload = f'{{"id":"{globals.challenge_id}","sectionIndex":0,"questions":['
-    for token in token_values:
-        payload = payload + f'{{"answer":"{token}"}},'
-    payload = payload[:-1] + "]}"
+    payload = json.dumps({
+        "id": globals.challenge_id,
+        "sectionIndex": 0,
+        "questions": [{"answer": token} for token in token_values],
+    })
 
 
     # Try to POST results to the grader 4 times
@@ -179,7 +184,7 @@ def post_submission(tokens: dict) -> Any:
     ## log error if still failure after 4 tries
     attempts = 0
     while attempts < 4:
-        logger.debug(f"Attempting {globals.grading_verb} submission to URL: {globals.grader_url}\tHeaders: {headers}\tPayload: {payload}")
+        logger.debug(f"Attempting {globals.grading_verb} submission to URL: {globals.grader_url}\tPayload: {payload}")
         attempts = attempts + 1
         try:
             if globals.grading_verb == "POST":
@@ -190,7 +195,7 @@ def post_submission(tokens: dict) -> Any:
                     return
                 elif r.status_code == 405:
                     logger.info(f"Got 405 from {globals.grader_url} after POST. Changing to PUT.")
-                    globals.grading_verb = "POST"
+                    globals.grading_verb = "PUT"
                 else:
                     logger.error(f"Got {r.status_code} from {globals.grader_url} attempting to POST. Message: {r.content}")
             if globals.grading_verb == "PUT":
@@ -208,7 +213,7 @@ def post_submission(tokens: dict) -> Any:
         logger.debug("Trying grader submission again after failure on previous attempt.")
 
 
-    logger.error(f"All attempts to submit results to grader failed.\tURL: {globals.grader_url}\tVerb: {globals.grading_verb}\tHeaders: {headers}\tPayload: {payload}")
+    logger.error(f"All attempts to submit results to grader failed.\tURL: {globals.grader_url}\tVerb: {globals.grading_verb}\tPayload: {payload}")
     globals.fatal_error = True
 
 
@@ -272,7 +277,7 @@ def read_token(part_name: str) -> str:
     elif globals.token_location == 'guestinfo':
         try:
             output = subprocess.run(f"vmtoolsd --cmd 'info-get guestinfo.{value}'", shell=True, capture_output=True)
-            if 'no value' in output.stderr.decode('utf-8').lower():
+            if output.returncode != 0 or 'no value' in output.stderr.decode('utf-8').lower():
                 logger.error(f"No value found when querying guestinfo variables for guestinfo.{value}")
                 if globals.grader_post:
                     globals.fatal_error = True
@@ -287,8 +292,8 @@ def read_token(part_name: str) -> str:
     # read token from file
     elif globals.token_location == 'file':
         try:
-            with open(f"{globals.basedir}/app/tokens/{value}", 'r') as f:
-                return f.readline()
+            with open(os.path.join(f"{globals.basedir}/app/tokens", value), 'r') as f:
+                return f.readline().strip()
         except:
             logger.error(f"Error opening file {value} when trying to read token for check {part_name}")
             if globals.grader_post:

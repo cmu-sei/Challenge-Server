@@ -43,9 +43,9 @@ services:
     # - CS_XAPI_TRANSPORT_FORMAT=''
     # - CS_XAPI_TRANSPORT_ENDPOINT=''
     # - CS_XAPI_TRANSPORT_AUTH=''
+    # - CS_XAPI_TRANSPORT_VERIFY_TLS=''
     # - CS_XAPI_ACTOR=''
     # - CS_XAPI_REGISTRATION=''
-    # - CS_XAPI_CONTEXT_TEMPLATE=''
     # - CS_XAPI_ACTIVITY_ID=''
 
     # # Optional: load all env vars from a file instead of listing individually above

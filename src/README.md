@@ -180,7 +180,7 @@ Examples can be found in the `config.yml` file.
 
 ## xAPI
 
-The Challenge Server acts as a profile-driven xAPI Learning Record Provider (LRP) that automatically operates at one of three levels based on available configuration.
+The Challenge Server acts as a profile-driven xAPI Learning Record Provider (LRP) that automatically operates at one of two levels based on available configuration.
 
 ### Operating Levels
 
@@ -194,15 +194,10 @@ The Challenge Server automatically detects which level to operate at based on da
 
 - **Level 1: Standalone xAPI LRP**
   - Sends complete xAPI statements with actor
+  - Requires `activity_id`, so each question has an absolute Activity id
   - Suitable for direct LRS integration
   - Transport via HTTP (direct) or file (admin manages forwarding and deduplication)
   - Use case: Standard xAPI deployments
-
-- **Level 2: cmi5 Assignable Unit (AU)**
-  - Challenge Server operates as part of a cmi5 AU
-  - Sends cmi5-allowed statements with actor, registration, and contextTemplate
-  - Parameters (actor, registration, contextTemplate) provided via environment variables at boot
-  - Use case: Integration with cmi5-conformant LMS
 
 ### Configuration
 
@@ -221,7 +216,7 @@ The Challenge Server automatically detects which level to operate at based on da
 
 - `transport.mode` - Transport type: `"file"` or `"http"`
   - `"file"` - Write statements to local file (Level 0/1)
-  - `"http"` - Send statements directly to LRS via HTTP (Level 1/2)
+  - `"http"` - Send statements directly to LRS via HTTP (Level 1)
 
 **File Transport:**
 
@@ -231,22 +226,23 @@ The Challenge Server automatically detects which level to operate at based on da
 JSONL example (2 statements):
 
 ```txt
-{"id": "4d698f46-691f-43c8-9bd6-a3a97f40cac4", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck1"}, "description": {"en-US": "First question\""}, "interactionType": "fill-in"}}, "result": {"success": false, "response": "test"}, "timestamp": "2026-03-16T12:43:46.953664+00:00"}
-{"id": "691f890a-32d8-8c33-a997-c4567a3ef600", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading", "definition": {"name": {"en-US": "GradingCheck2"}, "description": {"en-US": "Second question"}, "interactionType": "fill-in"}}, "result": {"success": true, "response": "correct"}, "timestamp": "2026-03-16T12:45:00.000000+00:00"}
+{"id": "4d698f46-691f-43c8-9bd6-a3a97f40cac4", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading/GradingCheck1", "definition": {"type": "http://adlnet.gov/expapi/activities/cmi.interaction", "name": {"en-US": "GradingCheck1"}, "description": {"en-US": "First question\""}, "interactionType": "fill-in"}}, "result": {"success": false, "response": "test"}, "timestamp": "2026-03-16T12:43:46.953+00:00"}
+{"id": "691f890a-32d8-8c33-a997-c4567a3ef600", "verb": {"id": "http://adlnet.gov/expapi/verbs/answered", "display": {"en-US": "answered"}}, "object": {"objectType": "Activity", "id": "https://challenge.test/grading/GradingCheck2", "definition": {"type": "http://adlnet.gov/expapi/activities/cmi.interaction", "name": {"en-US": "GradingCheck2"}, "description": {"en-US": "Second question"}, "interactionType": "fill-in"}}, "result": {"success": true, "response": "correct"}, "timestamp": "2026-03-16T12:45:00.000+00:00"}
 ```
 
 JSON String example (2 statements):
 
 ```txt
-[{"payload": "{\"id\": \"4d698f46-691f-43c8-9bd6-a3a97f40cac4\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck1\"}, \"description\": {\"en-US\": \"First question\\\"\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": false,\"response\": \"test\"}, \"timestamp\": \"2026-03-16T12:43:46.953664+00:00\"}"}, {"payload": "{\"id\": \"691f890a-32d8-8c33-a997-c4567a3ef600\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading\", \"definition\": {\"name\": {\"en-US\": \"GradingCheck2\"}, \"description\": {\"en-US\": \"Second question\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": true, \"response\": \"correct\"}, \"timestamp\": \"2026-03-16T12:45:00.000000+00:00\"}"}]
+[{"payload": "{\"id\": \"4d698f46-691f-43c8-9bd6-a3a97f40cac4\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading/GradingCheck1\", \"definition\": {\"type\": \"http://adlnet.gov/expapi/activities/cmi.interaction\", \"name\": {\"en-US\": \"GradingCheck1\"}, \"description\": {\"en-US\": \"First question\\\"\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": false,\"response\": \"test\"}, \"timestamp\": \"2026-03-16T12:43:46.953+00:00\"}"}, {"payload": "{\"id\": \"691f890a-32d8-8c33-a997-c4567a3ef600\", \"verb\": {\"id\": \"http://adlnet.gov/expapi/verbs/answered\", \"display\": {\"en-US\": \"answered\"}}, \"object\": {\"objectType\": \"Activity\", \"id\": \"https://challenge.test/grading/GradingCheck2\", \"definition\": {\"type\": \"http://adlnet.gov/expapi/activities/cmi.interaction\", \"name\": {\"en-US\": \"GradingCheck2\"}, \"description\": {\"en-US\": \"Second question\"}, \"interactionType\": \"fill-in\"}}, \"result\": {\"success\": true, \"response\": \"correct\"}, \"timestamp\": \"2026-03-16T12:45:00.000+00:00\"}"}]
 ```
 
 **HTTP Transport:**
 
-- `transport.endpoint` - LRS statements endpoint URL (e.g., `"https://lrs.example.com/xapi/statements"`)
+- `transport.endpoint` - LRS endpoint URL, without `/statements` (e.g., `"https://lrs.example.com/xapi"`). `/statements` is added when sending.
 - `transport.auth_token` - HTTP Authorization header value
   - Format: `"Basic <base64>"` where base64 is `echo -n "key:secret" | base64`
   - Required for HTTP transport
+- `transport.verify_tls` - Check the LRS TLS certificate (default: `true`). Set to `false` only for an LRS with a self-signed certificate.
 
 ### Identity & Context
 
@@ -256,32 +252,25 @@ These fields determine the operating level and support multiple configuration me
 
 1. **config.yml** - Static values for development/testing or single-user deployments
 2. **Environment variables** - Per-instance values at boot (recommended for multi-instance deployments)
-3. **REST API** - Runtime values via POST `/api/xapi/context` (required for cmi5 launches)
 
 **Fields:**
 
-- `actor` - xAPI Agent object identifying the learner (required for Level 1/2)
+- `actor` - xAPI Agent object identifying the learner (required for Level 1)
   - Must have at least one Inverse Functional Identifier (IFI): `mbox`, `mbox_sha1sum`, `openid`, or `account`
   - `objectType` and `name` are optional (objectType defaults to "Agent" if omitted)
   - Minimal example: `{"mbox": "mailto:user@example.com"}`
   - Full example: `{"objectType": "Agent", "mbox": "mailto:user@example.com", "name": "User"}`
   - Static config.yml is suitable for development/testing or single-user deployments
   - Environment variables recommended for multi-instance deployments
-  - REST API required for cmi5 launches where parameters come from LMS at runtime
 
-- `registration` - cmi5 session UUID (required for Level 2)
-  - Unique identifier for a single AU launch session
-  - Typically parsed from cmi5 launch URL and sent via **POST** `/api/xapi/context`
+- `registration` - Registration UUID, sent as `context.registration` (optional, Level 1)
 
-- `context_template` - cmi5 contextTemplate object (required for Level 2)
-  - Must be a valid xAPI context object
-  - Contains contextActivities, extensions for cmi5 requirements
-  - Typically parsed from cmi5 launch URL and sent via **POST** `/api/xapi/context`
+- `activity_id` - Base activity IRI (required for Level 1, optional for Level 0)
+  - Each question's object.id is `<activity_id>/<question_label>`, with the label percent-encoded as one path segment
+  - Must be an absolute IRI with no query or fragment, or xAPI stays off
+  - Defaults to `"challenge#<question_label>"` if not specified (Level 0 only)
 
-- `activity_id` - Base activity IRI (optional)
-  - Used as object.id for all statements
-  - Defaults to `"challenge#<question_label>"` if not specified
-  - Can be set via config, environment variables, or **POST** `/api/xapi/context`
+The Challenge Server does not build cmi5 context; it is added downstream. If `context_template` (or `CS_XAPI_CONTEXT_TEMPLATE`) is set, xAPI stays off and an error is logged.
 
 ### Question Configuration
 
@@ -359,65 +348,7 @@ grading:
   - Unknown keys generate warnings but don't block statement generation
   - If profile doesn't define matching extensions, data is ignored
 
-### Runtime Context API
-
-The Challenge Server exposes REST endpoints for runtime context management:
-
-#### Set Context
-
-**POST** `/api/xapi/context`
-
-Sets actor, registration, context_template, and activity_id at runtime. Useful for cmi5 launches where parameters are parsed from launch URL.
-
-Request body (all fields optional):
-
-```json
-{
-  "actor": {
-    "mbox": "mailto:user@example.com"
-    // Minimal: only IFI required (mbox, account, openid, or mbox_sha1sum)
-    // Optional: "objectType": "Agent" (defaults to "Agent")
-    // Optional: "name": "User Display Name"
-  },
-  "registration": "550e8400-e29b-41d4-a716-446655440000",
-  "context_template": {
-    "contextActivities": {
-      "category": [{"id": "https://w3id.org/xapi/cmi5/context/categories/cmi5"}]
-    }
-  },
-  "activity_id": "https://example.com/activity"
-}
-```
-
-Or with account IFI:
-
-```json
-{
-  "actor": {
-    "account": {
-      "homePage": "https://lms.example.com",
-      "name": "user123"
-    }
-  },
-  "registration": "550e8400-e29b-41d4-a716-446655440000",
-  "context_template": {...},
-  "activity_id": "https://example.com/activity"
-}
-```
-
-Response:
-
-```json
-{
-  "success": true,
-  "level": 2,
-  "mode": "cmi5-allowed",
-  "actor_present": true,
-  "cmi5_context_present": true
-}
-```
-
-#### Get Context Status
+### Context Status API
 
 **GET** `/api/xapi/context`
 
@@ -430,7 +361,6 @@ Response:
   "level": 1,
   "mode": "xapi",
   "actor_present": true,
-  "cmi5_context_present": false,
   "profile_loaded": true,
   "xapi_enabled": true
 }

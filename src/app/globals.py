@@ -114,7 +114,7 @@ class Globals:
 
         # xAPI Configuration
         self.xapi_enabled: bool = False
-        self.xapi_version: str = "2.0.0"
+        self.xapi_version: str = "1.0.3"
         self.xapi_profile_paths: List[str] = []
         self.xapi_profile_loaded: bool = False
 
@@ -124,6 +124,7 @@ class Globals:
         self.xapi_transport_format: str = "jsonl"       # "jsonl" or "json-string"
         self.xapi_transport_endpoint: str = ""          # For HTTP mode
         self.xapi_transport_auth: str = ""              # For HTTP mode
+        self.xapi_transport_verify_tls: bool = True     # For HTTP mode
 
         # xAPI Identity & Context (runtime-populated)
         self.xapi_actor: Dict = {}
@@ -134,6 +135,7 @@ class Globals:
 
         # Grading uploads
         self.grading_uploads: Dict = {}
+        self.max_upload_bytes: Optional[int] = None
 
 
     def __repr__(self) -> str:
@@ -216,7 +218,7 @@ class Globals:
             return env_val.lower() == 'true'
         if isinstance(conf, dict):
             return conf.get('enabled', default)
-        return conf or default
+        return default if conf is None else bool(conf)
 
 
     def resolve_int(self, key: str, conf_val, default: int) -> int:
@@ -294,7 +296,8 @@ class Globals:
                 pass
         elif isinstance(conf_val, int) and 1 <= conf_val <= 65535:
             return conf_val
-        logging.warning(f"Invalid port '{val or conf_val}', defaulting to {default}")
+        if val or conf_val is not None:
+            logging.warning(f"Invalid port '{val or conf_val}', defaulting to {default}")
         return default
 
     def resolve_json(self, key: str, conf_val, default: dict) -> dict:
@@ -327,24 +330,65 @@ class Globals:
         self.challenge_name = self.resolve('CS_CHALLENGE_NAME', conf.get('challenge_name'), "Challenge Server")
         self.port_checker = self.resolve_bool('CS_PORT_CHECKER', conf.get('port_checker'), False)
         self.grading_enabled = self.resolve_bool('CS_GRADING_ENABLED', conf.get('grading').get('enabled'), False)
-        if (self.grading_enabled) and (conf.get('grading').get('manual_grading', False)):
-            self.manual_grading_script = self.resolve('CS_MANUAL_GRADING',conf.get('grading').get('manual_grading_script'))
+        if (self.grading_enabled) and self.resolve_bool('CS_MANUAL_GRADING', conf.get('grading').get('manual_grading'), False):
             self.grading_mode.append('manual')
-        if (self.grading_enabled) and (conf.get('grading').get('cron_grading', False)):
-            self.cron_grading_script = self.resolve('CS_CRON_GRADING',conf.get('grading').get('cron_grading_script'))
-            self.grading_mode.append('cron')
+        if (self.grading_enabled) and self.resolve_bool('CS_CRON_GRADING', conf.get('grading').get('cron_grading'), False):
+            from app.cron import set_cron_vars
+            set_cron_vars(conf)
         self.startup_workspace = conf.get('startup', {}).get('runInWorkspace',False)
         self.startup_scripts = conf.get('startup', {}).get('scripts',[])
         self.manual_grading_script = self.resolve('CS_MANUAL_GRADING_SCRIPT', conf.get('grading').get('manual_grading_script'))
         self.hosted_files_enabled = self.resolve_bool('CS_HOSTED_FILES', conf.get('hosted_files'), False)
-        self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', conf.get('info_and_services'), False)
-        self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', conf.get('info_and_services'), False)
+        self.info_home_enabled = self.resolve_bool('CS_INFO_HOME_ENABLED', (conf.get('info_and_services') or {}).get('info_home_enabled'), False)
+        self.services_home_enabled = self.resolve_bool('CS_SERVICES_HOME_ENABLED', (conf.get('info_and_services') or {}).get('services_home_enabled'), False)
         self.token_location = self.resolve(
             'CS_TOKEN_LOCATION',
             conf.get('grading', {}).get('token_location'),
             self.token_location,
         )
+        if self.token_location not in self.VALID_TOKEN_LOCATIONS:
+            logging.error(f"Token Location: {self.token_location} is not recognized. Options are: {self.VALID_TOKEN_LOCATIONS}")
+            sys.exit(1)
         self.token_values = conf.get('grading', {}).get('token_values', {})
+
+        if self.grading_enabled:
+            grading_conf = conf.get('grading')
+            submission_conf = grading_conf.get('submission') or {}
+
+            # set grading rate limit. 0 if not defined
+            rate_limit = self.resolve('CS_GRADING_RATE_LIMIT', grading_conf.get('rate_limit'), 0)
+            try:
+                self.grading_rateLimit = timedelta(seconds=int(rate_limit))
+            except (TypeError, ValueError):
+                logging.error(f"Grading rate limit {rate_limit} must be a whole number of seconds.")
+                sys.exit(1)
+
+            # set grading submission method. "display" is default. Error if not recognized
+            self.submission_method = self.resolve('CS_SUBMISSION_METHOD', submission_conf.get('method'), 'display')
+            if self.submission_method not in self.VALID_SUBMISSION_METHODS:
+                logging.error(f"Submission Method: {self.submission_method} is not recognized. Options are: {self.VALID_SUBMISSION_METHODS}")
+                sys.exit(1)
+            self.grader_post = self.resolve_bool('CS_GRADER_POST', grading_conf.get('grader_post'), False)
+
+            # additional configuration for grader_post
+            self.grader_url = self.resolve('CS_GRADER_URL', submission_conf.get('grader_url'))
+            if self.submission_method == 'grader_post' and not self.grader_url:
+                logging.error(f"grader_url is not defined in environment variable CS_GRADER_URL or config file. grader_url is required when submission method is grader_post.")
+                sys.exit(1)
+            self.grader_key = self.resolve('CS_GRADER_KEY', submission_conf.get('grader_key'))
+            if self.submission_method == 'grader_post' and not self.grader_key:
+                logging.error(f"grader_key is not defined in environment variable CS_GRADER_KEY or config file. grader_key is required when submission method is grader_post.")
+                sys.exit(1)
+
+            self.grading_uploads = grading_conf.get('uploads') or {}
+            if 'files' in self.grading_uploads:
+                max_upload_size = str(self.grading_uploads.setdefault('max_upload_size', '1M'))
+                multiplier = {'G': 1024 * 1024 * 1024, 'M': 1024 * 1024, 'K': 1024}.get(max_upload_size[-1].upper(), 1)
+                try:
+                    self.max_upload_bytes = int(max_upload_size[:-1] if multiplier != 1 else max_upload_size) * multiplier
+                except ValueError:
+                    logging.error(f"Max upload size {max_upload_size} should end with G, M, K, or be a numeric value.")
+                    sys.exit(1)
 
         # Load xAPI configuration
         xapi_conf = conf.get('xapi', {}) or {}
@@ -352,7 +396,7 @@ class Globals:
 
         if self.xapi_enabled:
             # xAPI Version
-            self.xapi_version = self.resolve('CS_XAPI_VERSION', xapi_conf.get('version'), '2.0.0')
+            self.xapi_version = self.resolve('CS_XAPI_VERSION', xapi_conf.get('version'), '1.0.3')
 
             # Profile Paths
             profiles = xapi_conf.get('profiles', [])
@@ -386,6 +430,8 @@ class Globals:
                                                          transport_conf.get('endpoint'), '')
             self.xapi_transport_auth = self.resolve('CS_XAPI_TRANSPORT_AUTH',
                                                      transport_conf.get('auth_token'), '')
+            self.xapi_transport_verify_tls = self.resolve_bool('CS_XAPI_TRANSPORT_VERIFY_TLS',
+                                                               transport_conf.get('verify_tls'), True)
 
             # Identity & Context (from env vars, config, or REST endpoint)
             self.xapi_actor = self.resolve_json('CS_XAPI_ACTOR', xapi_conf.get('actor'), {})
@@ -401,9 +447,12 @@ class Globals:
 
         self.grading_parts = conf['grading']['parts']
         # self.bookmarks = self.resolve_dict("CS_BOOKMARKS",conf.get('info_and_services', {}).get('bookmarks', None)
-        self.bookmarks = conf.get('info_and_services').get('bookmarks', None)
+        self.bookmarks = (conf.get('info_and_services') or {}).get('bookmarks', None)
         # Check execution permission on configured grading scripts
         if 'manual' in self.grading_mode:
+            if not self.manual_grading_script:
+                logging.error("Manual grading is enabled but no manual_grading_script is defined.")
+                sys.exit(1)
             try:
                 if not os.access(os.path.join(self.custom_script_dir,self.manual_grading_script), os.X_OK):
                     logging.error(f"Manual grading script {self.manual_grading_script} is not executable.")
@@ -458,6 +507,15 @@ class Globals:
                 # add to blocking services if needed
                 if service['block_startup_scripts']:
                     self.blocking_services.append(service)
+
+        # Check for service logger config in yml & assign if enabled
+        self.services_list = conf.get('services_to_log') or None
+        for entry in self.services_list or []:
+            if ('host' not in entry) or ('password' not in entry) or ('service' not in entry):
+                logging.error("services_to_log missing data in yaml, please ensure all required parts are entered. (host, password, or service data). Exiting.")
+                sys.exit(1)
+            if not entry.get('user'):
+                entry['user'] = 'user'
         logging.debug(f"Final Config: {self}")
 
 

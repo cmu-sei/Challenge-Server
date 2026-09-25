@@ -175,8 +175,8 @@ grading:
 #     mode: upload
 
 # xAPI configuration - See README.md for detailed documentation and examples
-# Operates at 3 levels: Level 0 (fragments), Level 1 (standalone xAPI), Level 2 (cmi5 AU)
-# Level is auto-detected based on actor/registration/context_template presence
+# Operates at 2 levels: Level 0 (fragments), Level 1 (standalone xAPI)
+# Level is auto-detected based on actor presence
 
 # xapi:
 #   enabled: false
@@ -188,7 +188,7 @@ grading:
 #     format: "jsonl"
 #     endpoint: ""
 #     auth_token: ""
+#     verify_tls: true
 #   actor: {}
 #   registration: ""
-#   context_template: {}
 #   activity_id: ""

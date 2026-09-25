@@ -12,6 +12,7 @@
 import datetime, copy, os
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, jsonify, flash, g, Response
 from typing import Any
+from werkzeug.security import safe_join
 from app.databaseHelpers import check_questions
 from app.grading import do_grade
 from app.extensions import logger, globals
@@ -82,6 +83,9 @@ def upload() -> Response:
         Response: Redirect to the updated tasks page.
     """
 
+    if 'files' not in globals.grading_uploads:
+        return redirect(url_for("main.tasks"))
+
     for file_key in globals.grading_uploads['files']:
         uploaded = list(
             filter(
@@ -116,7 +120,7 @@ def grade() -> Response:
 
     if not globals.server_ready:
         logger.info("Tried to perform grading before server was marked as ready.")
-        return redirect(url_for("info.main"))
+        return redirect(url_for("info.home"))
 
     # if there is no current grading task, then create one
     if not globals.task:
@@ -155,9 +159,8 @@ def grade() -> Response:
         return redirect(url_for('main.results'))
 
     # if the current grading task is still running, show the grading page with the last submit time
-    if globals.task.running():
-        logger.debug("Grading task is still running")
-        return render_template('grading.html', submit_time=globals.manual_submit_time)
+    logger.debug("Grading task is still running")
+    return render_template('grading.html', submit_time=globals.manual_submit_time)
 
 
 @main.route('/results',methods=['GET'])
@@ -263,8 +266,12 @@ def list_files(folder) -> Response:
             return redirect(url_for("main.home"))
         files = {}
         dirs = {}
-        # Directly join the folder path with the base directory
-        tmpDir = os.path.join(globals.hosted_file_directory, folder)
+        # Join the folder path with the base directory
+        tmpDir = safe_join(globals.hosted_file_directory, folder)
+        if tmpDir is None or not os.path.isdir(tmpDir):
+            if folder:
+                return redirect(url_for('main.list_files'))
+            return render_template('files.html', files=files, folders=dirs)
         for filename in os.listdir(tmpDir):
             path = os.path.join(tmpDir,filename)
             if os.path.isdir(path):
@@ -291,14 +298,14 @@ def get_file(path) -> Response:
         if path == '':
             flash("File not selected for download")
             return redirect(url_for('main.list_files'))
-        filePath = os.path.join(globals.hosted_file_directory, path)
+        filePath = safe_join(globals.hosted_file_directory, path)
         if not globals.server_ready:
             logger.debug("Tried to download files before server was marked as ready.")
             return redirect(url_for("main.home"))
-        if os.path.isfile(filePath) :
+        if filePath and os.path.isfile(filePath) :
             logger.info(f"User is downloading file {filePath}")
             return send_from_directory(globals.hosted_file_directory,path,as_attachment=True)
         else:
-            flash(f"{filePath} does not exist.")
+            flash(f"{path} does not exist.")
             return redirect(url_for('main.list_files'))
     return render_template('files.html')

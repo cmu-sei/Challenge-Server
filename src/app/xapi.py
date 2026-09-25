@@ -11,10 +11,9 @@
 """
 xAPI Profile Implementation
 
-Provides a profile-driven xAPI Learning Record Provider with three operating levels:
+Provides a profile-driven xAPI Learning Record Provider with two operating levels:
 - Level 0: Telemetry Fragment Emitter (no actor/context)
 - Level 1: Standalone xAPI LRP (actor, optional registration for patterns)
-- Level 2: cmi5-Allowed Statement LRP (actor + registration + cmi5 context)
 
 Architecture follows Challenge Server pattern: single file per feature.
 """
@@ -23,11 +22,11 @@ import json
 import os
 import uuid
 import datetime
-import copy
 import time
 import logging
+import urllib.parse
 from typing import Dict, List, Optional, Any, Union
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,6 @@ class ProfileEngine:
         self.extensions: Dict[str, dict] = {}
         self.templates: List[dict] = []
         self.patterns: Dict[str, dict] = {}
-        self.profile_version_iris: List[str] = []
 
         # Shorthand lookups
         self._verb_by_preflabel: Dict[str, str] = {}
@@ -127,9 +125,6 @@ class ProfileEngine:
         """
         profile_id = profile.get('id', 'unknown')
         logger.info(f"[xapi] Indexing profile: {profile_id}")
-
-        if profile_id:
-            self.profile_version_iris.append(profile_id)
 
         # Handle both formats:
         # 1. Modern xAPI Profile Spec (1.0+): concepts array with type field
@@ -395,7 +390,7 @@ class ProfileEngine:
 # ============================================================================
 
 class StatementBuilder:
-    """xAPI Statement Builder - Builds statements at three levels."""
+    """xAPI Statement Builder - Builds statements at two levels."""
 
     def __init__(self, engine: ProfileEngine):
         self.engine = engine
@@ -412,8 +407,7 @@ class StatementBuilder:
               success: bool = True,
               xapi_data: dict = None,
               actor: dict = None,
-              registration: str = None,
-              context_template: dict = None) -> dict:
+              registration: str = None) -> dict:
         """Build xAPI statement or fragment."""
 
         statement_id = str(uuid.uuid4())
@@ -455,6 +449,10 @@ class StatementBuilder:
         if question_mode:
             self._add_interaction_type(definition, question_mode, question_opts)
 
+        # Interaction Activities SHOULD have the cmi.interaction Activity type (xAPI Data 2.4.4.1)
+        if "interactionType" in definition and "type" not in definition:
+            definition["type"] = "http://adlnet.gov/expapi/activities/cmi.interaction"
+
         # Build base statement
         statement = {
             "id": statement_id,
@@ -464,18 +462,14 @@ class StatementBuilder:
             },
             "object": {
                 "objectType": "Activity",
-                "id": activity_id if activity_id else f"challenge#{question_label}",
+                "id": activity_id,
                 "definition": definition
             },
             "result": {
                 "success": success
             },
-            "context": {
-                "contextActivities": {
-                    "category": []
-                }
-            },
-            "timestamp": now.isoformat()
+            # Timestamps MUST have at least millisecond precision (xAPI Data 4.5)
+            "timestamp": now.isoformat(timespec="milliseconds")
         }
 
         # Note: version property SHOULD NOT be included per IEEE 9274.1.1 Section 5.2.4.1
@@ -493,13 +487,6 @@ class StatementBuilder:
             for location, value in mapped.items():
                 self._set_nested_value(statement, location, value)
 
-        # Add profile version IRIs as category
-        for profile_iri in self.engine.profile_version_iris:
-            statement["context"]["contextActivities"]["category"].append({
-                "id": profile_iri,
-                "objectType": "Activity"
-            })
-
         # Store template for validation (will be removed before sending)
         if template:
             statement['_template'] = template
@@ -516,14 +503,7 @@ class StatementBuilder:
                 statement["actor"] = actor
             # Add registration to context if provided
             if registration:
-                statement["context"]["registration"] = registration
-            return statement
-        elif level == 2:
-            # Level 2: cmi5-allowed (actor + registration + context_template)
-            if actor:
-                statement["actor"] = actor
-            if registration or context_template:
-                statement = self._apply_cmi5_context(statement, registration, context_template)
+                statement["context"] = {"registration": registration}
             return statement
         else:
             logger.error(f"[xapi] Invalid level: {level}")
@@ -546,62 +526,6 @@ class StatementBuilder:
         else:
             definition["interactionType"] = "other"
 
-    def _apply_cmi5_context(self, statement: dict, registration: str,
-                            context_template: dict) -> dict:
-        """Apply cmi5-allowed statement requirements."""
-        if registration:
-            statement["context"]["registration"] = registration
-
-        if context_template:
-            template_copy = copy.deepcopy(context_template)
-
-            # Merge extensions
-            template_exts = template_copy.get('extensions', {})
-            if template_exts:
-                if 'extensions' not in statement["context"]:
-                    statement["context"]["extensions"] = {}
-                statement["context"]["extensions"].update(template_exts)
-
-            # Merge contextActivities
-            template_activities = template_copy.get('contextActivities', {})
-            if template_activities:
-                if 'contextActivities' not in statement["context"]:
-                    statement["context"]["contextActivities"] = {}
-
-                for activity_type in ['parent', 'grouping', 'category', 'other']:
-                    template_list = template_activities.get(activity_type, [])
-                    if template_list:
-                        if activity_type not in statement["context"]["contextActivities"]:
-                            statement["context"]["contextActivities"][activity_type] = []
-                        existing_ids = {
-                            act.get('id') for act in statement["context"]["contextActivities"][activity_type]
-                        }
-                        for act in template_list:
-                            if act.get('id') not in existing_ids:
-                                statement["context"]["contextActivities"][activity_type].append(act)
-
-        # Strip cmi5 category (this is cmi5-allowed, not cmi5-defined)
-        cmi5_category_id = "https://w3id.org/xapi/cmi5/context/categories/cmi5"
-        categories = statement["context"]["contextActivities"].get("category", [])
-        statement["context"]["contextActivities"]["category"] = [
-            cat for cat in categories if cat.get('id') != cmi5_category_id
-        ]
-
-        # Add moveOn category if result.success or result.completion present
-        result = statement.get('result', {})
-        if 'success' in result or 'completion' in result:
-            moveon_category = {
-                "id": "https://w3id.org/xapi/cmi5/context/categories/moveon",
-                "objectType": "Activity"
-            }
-            moveon_present = any(
-                cat.get('id') == moveon_category['id']
-                for cat in statement["context"]["contextActivities"]["category"]
-            )
-            if not moveon_present:
-                statement["context"]["contextActivities"]["category"].append(moveon_category)
-
-        return statement
 
     def _set_nested_value(self, obj: dict, path: str, value: Any) -> None:
         """Set nested value using JSONPath-like string."""
@@ -767,13 +691,20 @@ class FileTransport:
 
     def _write_jsonl(self, statement: dict) -> bool:
         """Write statement as JSONL (newline-delimited JSON)."""
+        import fcntl
         # Set umask to 0 so file is created with 0666 (rw-rw-rw-) if it doesn't exist
         # This allows other users (e.g., telegraf) to read and write
         old_umask = os.umask(0)
         try:
             with open(self.file_path, 'a', encoding='utf-8') as f:
-                json.dump(statement, f, ensure_ascii=False)
-                f.write('\n')
+                # Exclusive lock for append, so a reader emptying the file cannot lose a line
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    json.dump(statement, f, ensure_ascii=False)
+                    f.write('\n')
+                    f.flush()
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             logger.info(f"[xapi] Statement written to file (jsonl): {self.file_path}")
             return True
         finally:
@@ -836,12 +767,14 @@ class HTTPTransport:
     """HTTP Transport - Sends statements directly to LRS via HTTP."""
 
     def __init__(self, endpoint: str, auth_token: str,
-                 xapi_version: str = "2.0.0",
-                 max_retries: int = 3):
+                 xapi_version: str = "1.0.3",
+                 max_retries: int = 3,
+                 verify_tls: bool = True):
         self.endpoint = endpoint.rstrip('/')
         self.auth_token = auth_token
         self.xapi_version = xapi_version
         self.max_retries = max_retries
+        self.verify_tls = verify_tls
 
     def send(self, statement: dict) -> bool:
         """Send statement to LRS via HTTP PUT."""
@@ -858,7 +791,7 @@ class HTTPTransport:
 
         for attempt in range(self.max_retries):
             try:
-                response = requests.put(url, json=statement, headers=headers, timeout=10, verify=False)
+                response = requests.put(url, json=statement, headers=headers, timeout=10, verify=self.verify_tls)
 
                 if response.status_code in (200, 204):
                     verb_id = statement.get('verb', {}).get('id', '')
@@ -907,6 +840,20 @@ def initialize_xapi_engine() -> bool:
     try:
         logger.info("[xapi] Initializing xAPI engine")
 
+        # cmi5 context comes from the LMS contextTemplate and is added downstream (cmi5 10.2.1)
+        if globals.xapi_context_template:
+            logger.error("[xapi] xAPI is off: context_template is set, but cmi5 context is added downstream. Remove context_template and run without an actor (Level 0).")
+            return False
+
+        if globals.xapi_activity_id:
+            base = urllib.parse.urlsplit(globals.xapi_activity_id)
+            if not base.scheme or base.query or base.fragment:
+                logger.error(f"[xapi] xAPI is off: activity_id {globals.xapi_activity_id} must be an absolute IRI with no query or fragment, for example https://lab.example.org/challenge")
+                return False
+        elif globals.xapi_actor:
+            logger.error("[xapi] xAPI is off: an actor is set, so statements need absolute Activity ids. Set xapi.activity_id to an absolute IRI you control, for example https://lab.example.org/challenge")
+            return False
+
         # Create ProfileEngine
         profile_paths = globals.xapi_profile_paths or []
         _engine = ProfileEngine(profile_paths, basedir=globals.basedir)
@@ -932,7 +879,8 @@ def initialize_xapi_engine() -> bool:
             _transport = HTTPTransport(
                 endpoint=globals.xapi_transport_endpoint,
                 auth_token=globals.xapi_transport_auth,
-                xapi_version=globals.xapi_version
+                xapi_version=globals.xapi_version,
+                verify_tls=globals.xapi_transport_verify_tls
             )
             logger.info(f"[xapi] HTTPTransport initialized (endpoint={globals.xapi_transport_endpoint})")
 
@@ -978,7 +926,7 @@ def send_xapi_statement(question_label: str,
         verb_shorthand = xapi_config.get('verb', 'answered')
         xapi_data = xapi_config.get('data', {})
 
-        activity_id = globals.xapi_activity_id or f"challenge#{question_label}"
+        activity_id = get_activity_id(question_label)
 
         statement = _builder.build(
             level=level,
@@ -992,8 +940,7 @@ def send_xapi_statement(question_label: str,
             success=success,
             xapi_data=xapi_data,
             actor=globals.xapi_actor if level >= 1 else None,
-            registration=globals.xapi_registration if level >= 1 else None,
-            context_template=globals.xapi_context_template if level == 2 else None
+            registration=globals.xapi_registration if level >= 1 else None
         )
 
         # If build returned None, disambiguation failed and error already logged
@@ -1002,8 +949,10 @@ def send_xapi_statement(question_label: str,
 
         # Validate if template was selected (stored in statement by builder)
         template = statement.pop('_template', None)
+        conforms = False
         if template:
             warnings = _validator.validate(statement, template)
+            conforms = not warnings
             if warnings:
                 # Separate excluded (forbidden) violations from other warnings
                 excluded_errors = [w for w in warnings if "Forbidden field present" in w]
@@ -1018,7 +967,15 @@ def send_xapi_statement(question_label: str,
 
                 # Other warnings (missing recommended/required) are just warnings
                 if other_warnings:
-                    logger.warning(f'[xapi] "{question_label}": Statement validation warnings: {other_warnings}')
+                    logger.warning(f'[xapi] "{question_label}": Statement validation warnings for template {template.get("id")}: {other_warnings}. Profile category not added')
+
+        # Only a Statement that conforms to the template may have its Profile version as a category (xAPI Profiles 5.0)
+        if conforms and level > 0 and template.get('inScheme'):
+            context = statement.setdefault("context", {})
+            context.setdefault("contextActivities", {}).setdefault("category", []).append({
+                "id": template['inScheme'],
+                "objectType": "Activity"
+            })
 
         return _transport.send(statement)
 
@@ -1028,24 +985,36 @@ def send_xapi_statement(question_label: str,
 
 
 def get_current_level() -> int:
-    """Get current operating level (0/1/2).
+    """Get current operating level (0/1).
 
     Level 0: Telemetry fragments (no actor)
     Level 1: Standalone xAPI (actor, optional registration)
-    Level 2: cmi5-allowed (actor + registration + cmi5 context template)
     """
     from app.extensions import globals
 
-    has_actor = bool(globals.xapi_actor)
-    has_registration = bool(globals.xapi_registration)
-    has_context_template = bool(globals.xapi_context_template)
+    return 1 if globals.xapi_actor else 0
 
-    if not has_actor:
-        return 0
-    # Level 2 requires BOTH registration AND cmi5 context template (true cmi5)
-    if has_actor and has_registration and has_context_template:
-        return 2
-    return 1
+
+def get_activity_id(question_label: str) -> str:
+    """Get the Activity id for a question.
+
+    With activity_id configured, each question gets its own id, <activity_id>/<question_label>.
+    Without it, the relative id challenge#<question_label> is used (Level 0 only).
+
+    Args:
+        question_label: Question label
+
+    Returns:
+        str: Activity id
+    """
+    from app.extensions import globals
+
+    if not globals.xapi_activity_id:
+        return f"challenge#{question_label}"
+    # Activity ids MUST NOT be shared between Activities, and IRIs SHOULD be built with a library (xAPI Data 2.4.4.1, 2.2)
+    base = urllib.parse.urlsplit(globals.xapi_activity_id)
+    path = base.path[:-1] if base.path.endswith('/') else base.path
+    return urllib.parse.urlunsplit(base._replace(path=f"{path}/{urllib.parse.quote(question_label, safe='')}"))
 
 
 def cmi5_send_answered(question_label: str, question_text: str,
@@ -1076,67 +1045,18 @@ def cmi5_send_answered(question_label: str, question_text: str,
 xapi_api = Blueprint('xapi_api', __name__)
 
 
-@xapi_api.route('/context', methods=['POST'])
-def set_context():
-    """Set runtime xAPI context (actor, registration, contextTemplate)."""
-    from app.extensions import globals
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "No JSON body provided"}), 400
-
-    # Update actor
-    if 'actor' in data:
-        actor = data['actor']
-        has_ifi = any(key in actor for key in ['mbox', 'mbox_sha1sum', 'openid', 'account'])
-        if not has_ifi:
-            return jsonify({"error": "Actor must have at least one IFI"}), 400
-        globals.xapi_actor = actor
-        logger.info(f"[xapi] Actor updated via API")
-
-    # Update registration
-    if 'registration' in data:
-        globals.xapi_registration = data['registration']
-        logger.info(f"[xapi] Registration updated via API")
-
-    # Update context template
-    if 'context_template' in data:
-        globals.xapi_context_template = data['context_template']
-        logger.info(f"[xapi] Context template updated via API")
-
-    # Update activity ID
-    if 'activity_id' in data:
-        globals.xapi_activity_id = data['activity_id']
-        logger.info(f"[xapi] Activity ID updated via API")
-
-    globals.xapi_context_received = bool(globals.xapi_actor)
-
-    level = get_current_level()
-    mode = ["fragment", "xapi", "cmi5-allowed"][level]
-
-    return jsonify({
-        "success": True,
-        "level": level,
-        "mode": mode,
-        "actor_present": bool(globals.xapi_actor),
-        "cmi5_context_present": bool(globals.xapi_registration or globals.xapi_context_template)
-    })
-
-
 @xapi_api.route('/context', methods=['GET'])
 def get_context():
     """Get current operating level and context status."""
     from app.extensions import globals
 
     level = get_current_level()
-    mode = ["fragment", "xapi", "cmi5-allowed"][level]
+    mode = ["fragment", "xapi"][level]
 
     return jsonify({
         "level": level,
         "mode": mode,
         "actor_present": bool(globals.xapi_actor),
-        "cmi5_context_present": bool(globals.xapi_registration or globals.xapi_context_template),
         "profile_loaded": globals.xapi_profile_loaded,
         "xapi_enabled": globals.xapi_enabled
     })
