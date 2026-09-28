@@ -199,7 +199,7 @@ xAPI enables learning analytics for cybersecurity challenges:
 
 ### Challenge Server xAPI Capabilities
 
-Challenge Server operates as a profile-driven xAPI Learning Record Provider (LRP) with three automatic detection levels:
+Challenge Server operates as a profile-driven xAPI Learning Record Provider (LRP) with two automatic detection levels:
 
 #### Level 0: Partial xAPI Statements
 
@@ -207,11 +207,7 @@ Outputs JSON using xAPI vocabulary but missing actor and context fields. Used in
 
 #### Level 1: Standalone xAPI LRP
 
-Sends complete xAPI statements with actor. Supports optional registration for pattern tracking. Actor provided via config.yml, environment variables, or REST API. Standard xAPI deployment with direct LRS integration via HTTP or file transport.
-
-#### Level 2: cmi5-Allowed LRP
-
-Acts as an xAPI LRP deployed within a cmi5 Assignable Unit. Actor, registration, and contextTemplate provided via config.yml, environment variables, or REST API (typically from LMS launch parameters). Sends cmi5-allowed statements compliant with Section 9.6.2 of cmi5 spec. **Not a full cmi5 AU** (no launch method parsing, State API, or session lifecycle).
+Sends complete xAPI statements with actor. Supports optional registration for pattern tracking. Actor provided via config.yml or environment variables, with `activity_id` set so each question has an absolute Activity id. Standard xAPI deployment with direct LRS integration via HTTP or file transport.
 
 ### What Gets Tracked?
 

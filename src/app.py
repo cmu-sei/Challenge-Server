@@ -9,7 +9,7 @@
 #
 
 
-import threading, os, sys, argparse, logging, signal, time
+import threading, os, sys, argparse, logging
 from flask_executor import Executor
 from flask_cors import CORS
 from concurrent.futures import ThreadPoolExecutor
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     configure_logging(log_level)
 
-    CORS(app)
+    CORS(app, resources=r"/api/xapi/*")
     globals.executor = Executor(app)
     globals.executor.add_default_done_callback(done_grading)
 
@@ -100,6 +100,8 @@ if __name__ == '__main__':
     logger.info(f"Starting up")
     logger.info("Operating in a Workspace" if globals.in_workspace else "Operating in a Gamespace")
     Globals.from_yaml(globals)
+    if globals.max_upload_bytes:
+        app.config['MAX_CONTENT_LENGTH'] = globals.max_upload_bytes
 
     # Initialize Database
     initialize_db(app, globals.conf)
@@ -133,9 +135,7 @@ if __name__ == '__main__':
     successes, errors = run_startup_scripts()
     if errors:
         logger.error(f"Startup scripts exited with error(s): {list(errors.keys())}")
-        os.kill(os.getpid(), signal.SIGINT)
-        time.sleep(0.5)
-        sys.exit(1)
+        os._exit(1)
     if successes:
         logger.info(f"All startup scripts exited normally: {list(successes.keys())}")
 

@@ -187,6 +187,7 @@ def checkSocket(host: str, port: str|int) -> bool:
 
     logger.debug(f"Attempting to connect to socket {host}:{port}")
     success = False
+    s = None
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) if isIPv4(host) else socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         s.settimeout(2)
@@ -201,7 +202,8 @@ def checkSocket(host: str, port: str|int) -> bool:
     except Exception as e:
         logger.error(f"Failed connection to connect to socket {host}:{port}. Exception {e}")
     finally:
-        s.close()
+        if s:
+            s.close()
     return success
 
 
@@ -234,7 +236,7 @@ def checkWeb(host: str, port: str|int = 80, path:str = '/') -> bool:
 
     logger.debug(f"Attempting to reach {url}")
     try:
-        result = requests.get(url=url)
+        result = requests.get(url=url, timeout=10)
         logger.info(f"Web request returned {result.status_code}: {result.content}")
         return result.status_code == 200
     except requests.exceptions.Timeout as e:
@@ -343,7 +345,7 @@ def get_logs(service: dict) -> None:
         service (dict): Service dictionary
     """
 
-    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     while True:
         sleep(10)
         error = ''
@@ -393,11 +395,10 @@ def get_logs(service: dict) -> None:
             else:
                 logger.info(f"SERVICE_LOGGER: No new logs found at this time.")
             continue
-        output = cur_logs.split("\n")
-        output.remove("")
+        output = [line for line in cur_logs.split("\n") if line]
         for line in output:
-            if error == False:
+            if not error:
                 logger.info(f"SERVICE_LOGGER: {line}")
             else:
                 logger.error("SERVICE_LOGGER: "+ error + line)
-        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

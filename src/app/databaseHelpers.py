@@ -9,11 +9,39 @@
 #
 
 
-import datetime, json, sys
+import datetime, json, re, sys
 from typing import Any
 from flask import current_app, Flask
 from app.extensions import db, globals, record_solves_lock, logger
 from app.models import EventTracker, PhaseTracking, QuestionTracking
+
+
+def natural_key(label: str) -> list:
+    """
+    Sort key that orders embedded numbers numerically.
+
+    Args:
+        label (str): Question or phase label
+
+    Returns:
+        list: Sort key
+    """
+
+    return [int(t) if t.isdigit() else t.casefold() for t in re.split(r'(\d+)', label)]
+
+
+def is_pass(grader_result: str) -> bool:
+    """
+    Check if a grading result is a pass. The status is the first word of the result (`status -- optional msg`).
+
+    Args:
+        grader_result (str): Result from the grading script
+
+    Returns:
+        bool: True if the status is Success
+    """
+
+    return re.match(r"\s*success\b", grader_result, re.IGNORECASE) is not None
 
 
 def initialize_db(app: Flask, conf: dict) -> None:
@@ -25,10 +53,10 @@ def initialize_db(app: Flask, conf: dict) -> None:
                     logger.error("Phases enabled but no phases are configured in 'config.yml. Exiting.")
                     sys.exit(1)
                 globals.phases = conf['grading']['phase_info']
-                globals.phase_order = sorted(list(globals.phases.keys()),key=str.casefold)
+                globals.phase_order = sorted(list(globals.phases.keys()),key=natural_key)
                 if 'mini_challenge' in globals.phase_order:
-                    tmp = globals.phase_order.pop(0)
-                    globals.phase_order.append(tmp)
+                    globals.phase_order.remove('mini_challenge')
+                    globals.phase_order.append('mini_challenge')
                 try:
                     globals.current_phase = get_current_phase()
                 except KeyError as e:
@@ -37,12 +65,13 @@ def initialize_db(app: Flask, conf: dict) -> None:
                 p_restart = False
                 try:
                     p_chk = PhaseTracking.query.all()
-                    if len(p_chk) == len(globals.phases):
+                    if {p.label: p.tasks for p in p_chk} == {k: ','.join(v) for k, v in globals.phases.items()}:
                         p_restart = True
                 except Exception as e:
                     ...
                 if not p_restart:
                     try:
+                        PhaseTracking.query.delete()
 
                         for ind,phase in enumerate(globals.phase_order):
                             new_phase = PhaseTracking(id=ind, label=phase, tasks=','.join(globals.phases[phase]), solved=False,time_solved="---")
@@ -53,16 +82,20 @@ def initialize_db(app: Flask, conf: dict) -> None:
                         sys.exit(1)
 
             ## Add questions to DB for tracking
-            globals.question_order = sorted(list(globals.grading_parts.keys()),key=str.casefold)
+            globals.question_order = sorted(list(globals.grading_parts.keys()),key=natural_key)
             q_restart = False
             try:
                 q_chk = QuestionTracking.query.all()
-                if len(q_chk) == len(globals.grading_parts):
+                if {q.label for q in q_chk} == set(globals.grading_parts):
                     q_restart = True
             except Exception as e:
                 print(e)
             if not q_restart:
                 try:
+                    QuestionTracking.query.delete()
+                    if globals.phases_enabled:
+                        PhaseTracking.query.update({'solved': False, 'time_solved': '---'})
+                        globals.current_phase = globals.phase_order[0]
                     for index,key in enumerate(globals.question_order,start=1):
                         new_question = QuestionTracking(id=index,label=key,task=globals.grading_parts[key]['text'],response="",q_type=globals.grading_parts[key]['mode'],solved=False,time_solved="---")
                         db.session.add(new_question)
@@ -80,13 +113,14 @@ def record_solves() -> None:
 
     with record_solves_lock:
         with globals.scheduler.app.app_context():
+            recorded = [json.loads(e.data) for e in EventTracker.query.all()]
             objs = {
                 "Question Solved": QuestionTracking.query.all(),
                 "Phase Solved":PhaseTracking.query.all()
             }
             for k,v in objs.items():
                 for q in v:
-                    if q.solved == True:
+                    if q.solved == True and not any(r.get('event_type') == k and r.get(k) == q.label for r in recorded):
                         cur_data = {
                             "challenge":globals.challenge_name,
                             "support_code":globals.support_code,
@@ -119,13 +153,15 @@ def check_db(label: str) -> bool:
         return cur_question.solved
 
 
-def update_db(type_q: str, label: str = '', val: str = '') -> Any:
+def update_db(type_q: str, label: str = '', val: str = '', user_answer: str = '', send_failure: bool = False) -> Any:
     """Update database with question or phase status.
 
     Args:
         type_q (str): 'q' for question or 'p' for phase update
         label (str, optional): Database event label. Defaults to ''.
         val (str, optional): Database event value. Defaults to ''.
+        user_answer (str, optional): The user's answer, sent as the xAPI response. Defaults to ''.
+        send_failure (bool, optional): Send an xAPI statement if the question is not solved. Defaults to False.
 
     Returns:
         Any
@@ -139,9 +175,8 @@ def update_db(type_q: str, label: str = '', val: str = '') -> Any:
                     logger.error("Update Database: No entry found in DB while attempting to mark question completed. Exiting")
                     sys.exit(1)
                 if '--' in val:
-                    user_response, user_answer = val.split('--', 1)
-                    cur_question.response = user_response
-                if (val and '--' not in val) and (cur_question.response == ''):
+                    cur_question.response = val.split('--', 1)[1].strip()
+                elif val:
                     cur_question.response = "N/A"
                 was_solved = cur_question.solved
 
@@ -153,7 +188,7 @@ def update_db(type_q: str, label: str = '', val: str = '') -> Any:
                     question_opts = part_info.get('opts', {})
                 user_response = cur_question.response
 
-                if "success" in val.lower():
+                if is_pass(val):
                     cur_question.solved = True
                     cur_question.time_solved = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                     # xAPI: If newly solved, send statement with success set to True
@@ -162,8 +197,8 @@ def update_db(type_q: str, label: str = '', val: str = '') -> Any:
                         question_config = globals.grading_parts.get(label, {})
                         send_xapi_statement(label, question_config, user_answer, True)
                 else:
-                    # xAPI: If newly failed, send statement with success set to False
-                    if not was_solved and globals.xapi_enabled:
+                    # xAPI: If newly failed and answered, send statement with success set to False
+                    if not was_solved and send_failure and globals.xapi_enabled:
                         from app.xapi import send_xapi_statement
                         question_config = globals.grading_parts.get(label, {})
                         send_xapi_statement(label, question_config, user_answer, False)
@@ -219,7 +254,7 @@ def get_current_phase() -> str:
             if cur_phase.solved == False:
                 globals.current_phase = cur_phase.label
                 return cur_phase.label
-        globals.challenge_completed == True
+        globals.challenge_completed = True
         globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         return "completed"
 
@@ -237,8 +272,10 @@ def check_questions() -> None:
             if q.solved == True:
                 solved_tracker+= 1
         if solved_tracker == expected:
-            globals.challenge_completed == True
-            globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
-            db.session.add(new_event)
-            db.session.commit()
+            globals.challenge_completed = True
+            # record the completion once, including across restarts
+            if not any(json.loads(e.data).get('event_type') == "Challenge Completed" for e in EventTracker.query.all()):
+                globals.challenge_completion_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                new_event = EventTracker(data=json.dumps({"challenge":globals.challenge_name, "support_code":globals.support_code, "event_type":"Challenge Completed","recorded_at":globals.challenge_completion_time}))
+                db.session.add(new_event)
+                db.session.commit()

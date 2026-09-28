@@ -7,7 +7,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/user/challengeServer/src/
-ExecStart=python3 /home/user/challengeServer/src/challengeServer.py
+ExecStart=python3 /home/user/challengeServer/src/app.py
 Restart=on-failure
 
 [Install]

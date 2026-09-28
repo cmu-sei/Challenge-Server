@@ -9,7 +9,8 @@
 #
 
 import datetime, os, sys, subprocess
-from app.databaseHelpers import record_solves
+from flask import Flask
+from app.databaseHelpers import is_pass, record_solves, update_db
 from time import sleep
 from app.env import get_clean_env
 from app.extensions import globals, logger
@@ -86,7 +87,7 @@ def do_cron_grade() -> tuple[dict,dict]:
 
     # Something happened if there was a non-zero exit status. Log this and set fatal_error
     except subprocess.CalledProcessError as e:
-        logger.error(f"Grading script {globals.manual_grading_script} returned with non-zero exit status {e.returncode}.\tStdout: {e.stdout}\tStderr: {e.stderr}")
+        logger.error(f"Grading script {globals.cron_grading_script} returned with non-zero exit status {e.returncode}.\tStdout: {e.stdout}\tStderr: {e.stderr}")
         globals.fatal_error = True
         output = ""
 
@@ -113,7 +114,7 @@ def do_cron_grade() -> tuple[dict,dict]:
         if key not in globals.grading_parts.keys():
             logger.debug(f"Found key in results that is not a grading part. Removing {key} from results dict. ")
             del end_results[key]
-        if "success" in value.lower():
+        if is_pass(value):
             tokens[key] = read_token(key)
         else:
             tokens[key] = "You did not earn a token for this part"
@@ -123,11 +124,40 @@ def do_cron_grade() -> tuple[dict,dict]:
     return end_results, tokens
 
 
-def run_cron_thread() -> None:
+def run_cron_tick(app: Flask, cron_attempts: int) -> None:
     """
-    Run do_cron_grade on a timer via a thread (similar to a cron job)
+    Run do_cron_grade once.
     Post submissions if needed.
     Log grading attempts to the database.
+
+    Args:
+        app (Flask): The Flask app
+        cron_attempts (int): Grading attempt number
+    """
+
+    globals.cron_submit_time = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    logger.debug(f"Starting cron grading attempt number {cron_attempts}")
+    globals.cron_results, tokens = do_cron_grade()
+    globals.tokens['cron'] = tokens
+    if globals.grader_post:
+        post_submission(tokens)
+    logger.info(f"Results of cron grading attempt number {cron_attempts}: {globals.cron_results}")
+    with app.app_context():
+        # xAPI: cron questions are not answered by the user, so failures are not sent
+        for k, v in globals.cron_results.items():
+            update_db('q', k, v)
+        if globals.phases_enabled:
+            update_db('p')
+    # record solves to the database
+    globals.scheduler.add_job(id="Record_Solves",func=record_solves)
+
+
+def run_cron_thread(app: Flask) -> None:
+    """
+    Run run_cron_tick on a timer via a thread (similar to a cron job)
+
+    Args:
+        app (Flask): The Flask app
     """
 
     limit = globals.cron_limit
@@ -137,14 +167,6 @@ def run_cron_thread() -> None:
     while globals.cron_limit != 0:
         cron_attempts += 1
         globals.cron_limit = globals.cron_limit - 1
-        globals.cron_submit_time = datetime.datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-        logger.debug(f"Starting cron grading attempt number {cron_attempts}")
-        globals.cron_results, tokens = do_cron_grade()
-        globals.tokens['cron'] = tokens
-        if globals.grader_post:
-            post_submission(tokens)
-        logger.info(f"Results of cron grading attempt number {cron_attempts}: {globals.cron_results}")
-        # record solves to the database
-        globals.scheduler.add_job(id="Record_Solves",func=record_solves)
+        run_cron_tick(app, cron_attempts)
         sleep(globals.cron_interval)
     logger.info(f"The number of grading attempts ({limit}) has been exhausted. No more grading will take place.")
